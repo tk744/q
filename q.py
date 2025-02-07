@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
-from abc import ABC, abstractmethod
 import argparse
+import json
 import os
 import pyperclip
-from termcolor import colored
+
+from abc import ABC, abstractmethod
 from openai import OpenAI
+from termcolor import colored
+
 
 class SingleMetavarHelpFormatter(argparse.HelpFormatter):
     """Custom HelpFormatter to display `--cmd TEXT` instead of `--cmd TEXT [TEXT ...]`."""
@@ -19,6 +22,8 @@ class LLM(ABC):
     Abstract base class for a language model. Subclasses must implement the `model` and `messages` methods, and may override the `model_args` method.
     """
 
+    messages_file = 'messages.json'
+
     default_model_args = {
         'temperature': 0.0,
         'max_tokens': 256,
@@ -30,13 +35,13 @@ class LLM(ABC):
 
     @classmethod
     def prompt(cls, text: str, verbose=False) -> str:
-        # merge default model arguments with user-provided model arguments
         model_args = {**cls.default_model_args, **cls.model_args()}
+        messages = cls.messages(text)
 
         # send messages to the LLM
         response = cls.client().chat.completions.create(
             model=cls.model(),
-            messages=cls.messages(text),
+            messages=messages,
             **model_args
         ).choices[0].message.content
 
@@ -46,9 +51,13 @@ class LLM(ABC):
         if response.endswith('```'):
             response = response[:response.rfind('\n')]
 
+        # save messages to file for later reference
+        messages.append({'role': 'assistant', 'content': response})
+        cls.save_messages(messages)
+
         # print messages and response depending on verbosity
         if verbose:
-            for message in cls.messages(text) + [{'role': 'assistant', 'content': response}]:
+            for message in messages:
                 print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
         else:
             print(response)
@@ -59,14 +68,24 @@ class LLM(ABC):
         return response
     
     @classmethod
-    def client(cls, openai_key_file='openai_api.key') -> OpenAI:
+    def client(cls, openai_key_file='openai.key') -> OpenAI:
         try:
             with open(openai_key_file) as f:
                 os.environ['OPENAI_API_KEY'] = f.read()
                 return OpenAI()
         except FileNotFoundError:
-            print(colored('Error: OpenAI API key file not found. Please create a file named "openai_api.key" in the current directory and paste your API key there.', 'red'))
+            print(colored(f'Error: OpenAI API key file not found. Please create a file named {openai_key_file} in the current directory and paste your API key there.', 'red'))
             exit(1)
+
+    @classmethod
+    def save_messages(cls, messages: list):
+        with open(cls.messages_file, 'w') as f:
+            json.dump(messages, f, indent=4)
+
+    @classmethod
+    def load_messages(cls) -> list:
+        with open(cls.messages_file) as f:
+            return json.load(f)
 
     @classmethod
     @abstractmethod
@@ -82,7 +101,29 @@ class LLM(ABC):
     def messages(cls, text=None) -> list:
         pass
 
-class BasicLLM(LLM):
+class RecallLLM(LLM):
+    """
+    A stateful language model that can respond to prompts about previous messages.
+    """
+    
+    
+    @classmethod
+    def model(cls) -> str:
+        return 'gpt-4o'
+
+    @classmethod
+    def messages(cls, text) -> list:
+        return cls.load_messages() + [
+            {
+                'role': 'user',
+                'content': text
+            }
+        ]
+
+class ChatLLM(LLM):
+    """
+    A conversational language model that can respond to anything.
+    """
     
     @classmethod
     def model(cls) -> str:
@@ -93,7 +134,7 @@ class BasicLLM(LLM):
         return [
             { 
                 'role': 'system', 
-                'content': 'You are a general-purpose language model. Given a natural language prompt, generate a response that is accurate, coherent, and contextually relevant. Respond in a clear and concise manner, avoiding unnecessary jargon or complexity. If the prompt is ambiguous, ask clarifying questions to gather more information.'
+                'content': 'You are ChatGPT, a friendly AI assistant.'
             },
             {
                 'role': 'user',
@@ -102,6 +143,9 @@ class BasicLLM(LLM):
         ]
 
 class BashLLM(LLM):
+    """
+    A language model that generates Bash commands from natural language descriptions.
+    """
 
     @classmethod
     def model(cls) -> str:
@@ -121,6 +165,9 @@ class BashLLM(LLM):
         ]
     
 class PythonLLM(LLM):
+    """
+    A language model that generates Python code from natural language descriptions.
+    """
 
     @classmethod
     def model(cls) -> str:
@@ -146,6 +193,9 @@ class PythonLLM(LLM):
         ]
     
 class RegexLLM(LLM):
+    """
+    A language model that generates Python regex patterns from natural language descriptions.
+    """
 
     @classmethod
     def model(cls) -> str:
@@ -164,8 +214,6 @@ class RegexLLM(LLM):
             }
         ]
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='q is an LLM-based command-line copilot that generates code and text for programmers.', 
@@ -173,12 +221,13 @@ if __name__ == '__main__':
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-b', '--bash', metavar='TEXT', nargs='+', type=str, help='Generate a Bash command from a description')
-    group.add_argument('-p', '--python', metavar='TEXT', nargs='+', type=str, help='Generate a Python script from a description')
-    group.add_argument('-r', '--regex', metavar='TEXT', nargs='+', type=str, help='Generate a Python regex pattern from a description')
-    group.add_argument('text', metavar='TEXT', nargs='*', type=str, help="Prompt the LLM with some text")
+    group.add_argument('-c', '--chat', metavar='TEXT', nargs='+', type=str, help='prompt the LLM about anything')
+    group.add_argument('-b', '--bash', metavar='TEXT', nargs='+', type=str, help='generate a Bash command from a description')
+    group.add_argument('-p', '--python', metavar='TEXT', nargs='+', type=str, help='generate a Python script from a description')
+    group.add_argument('-r', '--regex', metavar='TEXT', nargs='+', type=str, help='generate a Python regex pattern from a description')
+    group.add_argument('text', metavar='TEXT', nargs='*', type=str, help='chat about the previous response')
     
-    parser.add_argument('-v', '--verbose', action='store_true', help='Print the LLM messages and response')
+    parser.add_argument('-v', '--verbose', action='store_true', help='print the LLM messages and response')
 
     # TODO:
     # group.add_argument('-e', '--explain', metavar='TEXT', nargs='+', type=str, help='Explain a concept or code snippet')
@@ -186,13 +235,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.bash:
+    if args.chat:
+        ChatLLM.prompt(' '.join(args.chat), args.verbose)
+    elif args.bash:
         BashLLM.prompt(' '.join(args.bash), args.verbose)
     elif args.python:
         PythonLLM.prompt(' '.join(args.python), args.verbose)
     elif args.regex:
         RegexLLM.prompt(' '.join(args.regex), args.verbose)
     elif args.text:
-        BasicLLM.prompt(' '.join(args.text), args.verbose)
+        RecallLLM.prompt(' '.join(args.text), args.verbose)
     else:
         parser.print_help()
