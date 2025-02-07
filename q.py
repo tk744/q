@@ -51,7 +51,7 @@ class LLM(ABC):
         if response.endswith('```'):
             response = response[:response.rfind('\n')]
 
-        # save messages to file for later reference
+        # save messages to file for future reference
         messages.append({'role': 'assistant', 'content': response})
         cls.save_messages(messages)
 
@@ -142,6 +142,28 @@ class ChatLLM(LLM):
             }
         ]
 
+class RewriteLLM(LLM):
+    """
+    A language model that rewrites text for clarity, accuracy, and readability.
+    """
+
+    @classmethod
+    def model(cls) -> str:
+        return 'gpt-4o'
+
+    @classmethod
+    def messages(cls, text) -> list:
+        return [
+            { 
+                'role': 'system', 
+                'content': 'You are a skilled writing assistant specializing in improving the clarity, conciseness, and correctness of written text. Your goal is to rephrase input text while preserving its original meaning, improving word choice, grammar, and flow. Ensure that the output is professional, precise, and natural-sounding. Do not add or remove significant information unless necessary for clarity.'
+            },
+            {
+                'role': 'user',
+                'content': f'Improve the following text for clarity, accuracy, and readability while keeping the original meaning.\n{text}'
+            }
+        ]
+
 class BashLLM(LLM):
     """
     A language model that generates Bash commands from natural language descriptions.
@@ -216,27 +238,29 @@ class RegexLLM(LLM):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='q is an LLM-based command-line copilot that generates code and text for programmers.', 
+        description='q is an LLM-powered command-line copilot that generates code and text used most by programmers.', 
         formatter_class=SingleMetavarHelpFormatter # custom formatter
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-c', '--chat', metavar='TEXT', nargs='+', type=str, help='prompt the LLM about anything')
+    group.add_argument('-r', '--rewrite', metavar='TEXT', nargs='+', type=str, help='rewrite text for improved phrasing')
     group.add_argument('-b', '--bash', metavar='TEXT', nargs='+', type=str, help='generate a Bash command from a description')
     group.add_argument('-p', '--python', metavar='TEXT', nargs='+', type=str, help='generate a Python script from a description')
-    group.add_argument('-r', '--regex', metavar='TEXT', nargs='+', type=str, help='generate a Python regex pattern from a description')
+    group.add_argument('-x', '--regex', metavar='TEXT', nargs='+', type=str, help='generate a Python regex pattern from a description')
     group.add_argument('text', metavar='TEXT', nargs='*', type=str, help='chat about the previous response')
     
     parser.add_argument('-v', '--verbose', action='store_true', help='print the LLM messages and response')
 
     # TODO:
     # group.add_argument('-e', '--explain', metavar='TEXT', nargs='+', type=str, help='Explain a concept or code snippet')
-    # group.add_argument('-r', '--rephrase', metavar='TEXT', nargs='+', type=str, help='Rewrite some text')
 
     args = parser.parse_args()
 
     if args.chat:
         ChatLLM.prompt(' '.join(args.chat), args.verbose)
+    elif args.rewrite:
+        RewriteLLM.prompt(' '.join(args.rewrite), args.verbose)
     elif args.bash:
         BashLLM.prompt(' '.join(args.bash), args.verbose)
     elif args.python:
