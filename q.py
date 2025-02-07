@@ -24,9 +24,10 @@ class LLM(ABC):
     Abstract base class for a language model. Subclasses must implement the `model` and `messages` methods, and may override the `model_args` method.
     """
 
-    openai_key_file = 'openai.key'
-
-    messages_file = 'messages.json'
+    # default resource paths
+    resource_dir = os.path.expanduser('~/.q')
+    openai_key_file = os.path.join(resource_dir, 'openai_key.txt')
+    messages_file = os.path.join(resource_dir, 'messages.json')
 
     default_model_args = {
         'temperature': 0.0,
@@ -82,6 +83,7 @@ class LLM(ABC):
                     return client
             except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
                 print(colored(f'Error: OpenAI API key not found. Please paste your API key:', 'red'), end='', flush=True)
+                os.makedirs(cls.resource_dir, exist_ok=True)
                 with open(cls.openai_key_file, 'w') as f:
                     f.write(getpass.getpass(prompt=''))
 
@@ -142,7 +144,7 @@ class ChatLLM(LLM):
         return [
             { 
                 'role': 'system', 
-                'content': 'You are Q, a young and sarcastic but helfpul AI.'
+                'content': 'You are a helpful and knowledgeable AI assistant.'
             },
             {
                 'role': 'user',
