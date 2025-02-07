@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+import getpass
 import json
+import openai
 import os
 import pyperclip
 
@@ -21,6 +23,8 @@ class LLM(ABC):
     """
     Abstract base class for a language model. Subclasses must implement the `model` and `messages` methods, and may override the `model_args` method.
     """
+
+    openai_key_file = 'openai.key'
 
     messages_file = 'messages.json'
 
@@ -56,6 +60,7 @@ class LLM(ABC):
         cls.save_messages(messages)
 
         # print messages and response depending on verbosity
+        print()
         if verbose:
             for message in messages:
                 print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
@@ -65,17 +70,20 @@ class LLM(ABC):
         # copy response to clipboard
         pyperclip.copy(response)
 
-        return response
+        return 0
     
     @classmethod
-    def client(cls, openai_key_file='openai.key') -> OpenAI:
-        try:
-            with open(openai_key_file) as f:
-                os.environ['OPENAI_API_KEY'] = f.read()
-                return OpenAI()
-        except FileNotFoundError:
-            print(colored(f'Error: OpenAI API key file not found. Please create a file named {openai_key_file} in the current directory and paste your API key there.', 'red'))
-            exit(1)
+    def client(cls) -> OpenAI:
+        while True:
+            try:
+                with open(cls.openai_key_file) as f:
+                    client = OpenAI(api_key=f.read())
+                    client.models.list() # test the API key
+                    return client
+            except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
+                print(colored(f'Error: OpenAI API key not found. Please paste your API key:', 'red'), end='', flush=True)
+                with open(cls.openai_key_file, 'w') as f:
+                    f.write(getpass.getpass(prompt=''))
 
     @classmethod
     def save_messages(cls, messages: list):
@@ -134,7 +142,7 @@ class ChatLLM(LLM):
         return [
             { 
                 'role': 'system', 
-                'content': 'You are ChatGPT, a friendly AI assistant.'
+                'content': 'You are Q, a young and sarcastic but helfpul AI.'
             },
             {
                 'role': 'user',
