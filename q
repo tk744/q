@@ -307,18 +307,18 @@ def main(args):
         exit(0)
 
     # check if there is more than one command
-    all_commands = [flag for cmd in commands for flag in cmd['flags']]
-    if len([arg for arg in args[1:] if arg in all_commands]) > 1:
+    cmd_flags = [flag for cmd in commands for flag in cmd['flags']]
+    if len([arg for arg in args[1:] if arg in cmd_flags]) > 1:
         print(colored(f'Error: Only one command may be provided.', 'red'))
         exit(1)
 
     # check if there is a command that is not the first argument
-    if len([arg for arg in args[1:] if arg in all_commands]) == 1 and args[1] not in all_commands:
+    if len([arg for arg in args[1:] if arg in cmd_flags]) == 1 and args[1] not in cmd_flags:
         print(colored(f'Error: Command must be the first argument.', 'red'))
         exit(1)
 
     # check if the first argument is an invalid command
-    if args[1].startswith('-') and args[1] not in all_commands:
+    if args[1].startswith('-') and args[1] not in cmd_flags:
         print(colored(f'Error: Invalid command "{args[1]}".', 'red'))
         exit(1)
 
@@ -327,13 +327,30 @@ def main(args):
         print(colored(f'Error: No text provided.', 'red'))
         exit(1)
 
-    # get options and remove them from the arguments
-    # TODO: only check for options at the end of the text
-    option_args = {opt['name']: any(flag in args[1:] for flag in opt['flags']) for opt in options}
-    args = [arg for arg in args if arg not in [flag for opt in options for flag in opt['flags']]]
+    # get options after text and remove them from args
+    option_args = {opt['name']: False for opt in options}
+    opt_flags = [flag for opt in options for flag in opt['flags']]
+    while args[-1].startswith('-') and args[-1] != '-':
+        # individual flags (e.g. -v -n)
+        if args[-1] in opt_flags:
+            flag = args.pop()
+            for opt in options:
+                if flag in opt['flags']:
+                    option_args[opt['name']] = True
+        # combined flags (e.g. -vn)
+        else:
+            flags = args.pop()[1:]
+            for flag in flags:
+                for opt in options:
+                    if f'-{flag}' in opt['flags']:
+                        option_args[opt['name']] = True
+                        break
+                else:
+                    print(colored(f'Error: Invalid option "-{flags}".', 'red'))
+                    exit(1)
 
     # if the first argument is not a command, use the default LLM
-    if args[1] not in all_commands:
+    if args[1] not in cmd_flags:
         default_llms = [cmd['llm'] for cmd in commands if not cmd['flags']]
         assert len(default_llms) == 1, 'Programming error: There is more than one default LLM.'
         default_llms[0].prompt(' '.join(args[1:]), **option_args)
