@@ -34,7 +34,7 @@ class LLM(ABC):
     }
 
     @classmethod
-    def prompt(cls, text: str, **toggle_args) -> str:
+    def prompt(cls, text: str, **option_args) -> str:
         model_args = {**cls.default_model_args, **cls.model_args()}
         messages = cls.messages(text)
 
@@ -56,14 +56,15 @@ class LLM(ABC):
         cls.save_messages(messages)
 
         # print messages and response depending on verbosity
-        if toggle_args.get('verbose', False):
+        if option_args.get('verbose', False):
             for message in messages:
                 print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
         else:
             print(response)
 
         # copy response to clipboard
-        pyperclip.copy(response)
+        if not option_args.get('no-clip', False):
+            pyperclip.copy(response)
 
         return 0
     
@@ -109,7 +110,6 @@ class RecallLLM(LLM):
     """
     A stateful language model that can respond to prompts about previous messages.
     """
-    
     
     @classmethod
     def model(cls) -> str:
@@ -274,12 +274,17 @@ def main(args):
         },
     ]
 
-    toggles = [
+    options = [
         { 
             'name': 'verbose',
             'flags': ['-v', '--verbose'],
             'description': 'print the message and response history',
         },
+        {
+            'name': 'no-clip',
+            'flags': ['-n', '--no-clip'],
+            'description': 'do not copy the output to the clipboard',
+        }
         # {
         #     'name': 'reasoning',
         #     'flags': ['-o', '--reasoning'],
@@ -288,13 +293,13 @@ def main(args):
     ]
 
     # help text
-    tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in commands + toggles) + 3
-    help_text = 'q is an LLM-powered command-line copilot that generates code and text used most by programmers.'
-    help_text += '\n\nUsage: ' + colored(f'{os.path.basename(args[0])} [command] TEXT [toggles]', 'green')
+    tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in commands + options) + 3
+    help_text = 'q is an LLM-powered programming copilot from the comfort of your command line.'
+    help_text += '\n\nUsage: ' + colored(f'{os.path.basename(args[0])} [command] TEXT [options]', 'green')
     help_text += '\n\nCommands (one required):\n'
     help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(cmd["flags"]) if cmd["flags"] else "TEXT":<{flag_len}}', 'green') + f'{cmd["description"]}' for cmd in commands])
-    help_text += '\n\nToggles (optional):\n'
-    help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(tog["flags"]):<{flag_len}}', 'green') + f'{tog["description"]}' for tog in toggles])
+    help_text += '\n\nOptions:\n'
+    help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(opt["flags"]):<{flag_len}}', 'green') + f'{opt["description"]}' for opt in options])
 
     # print help text if no arguments or -h/--help flag is provided
     if len(args) == 1 or args[1] in ['-h', '--help']:
@@ -322,22 +327,22 @@ def main(args):
         print(colored(f'Error: No text provided.', 'red'))
         exit(1)
 
-    # get toggles and remove them from the arguments
-    # TODO: only check for toggles before or after the text, not within it
-    toggle_args = {tog['name']: any(flag in args[1:] for flag in tog['flags']) for tog in toggles}
-    args = [arg for arg in args if arg not in [flag for tog in toggles for flag in tog['flags']]]
+    # get options and remove them from the arguments
+    # TODO: only check for options at the end of the text
+    option_args = {opt['name']: any(flag in args[1:] for flag in opt['flags']) for opt in options}
+    args = [arg for arg in args if arg not in [flag for opt in options for flag in opt['flags']]]
 
     # if the first argument is not a command, use the default LLM
     if args[1] not in all_commands:
         default_llms = [cmd['llm'] for cmd in commands if not cmd['flags']]
         assert len(default_llms) == 1, 'Programming error: There is more than one default LLM.'
-        default_llms[0].prompt(' '.join(args[1:]), **toggle_args)
+        default_llms[0].prompt(' '.join(args[1:]), **option_args)
         exit(0)
 
     # if the first argument is a command, use the corresponding LLM
     for cmd in commands:
         if args[1] in cmd['flags']:
-            cmd['llm'].prompt(' '.join(args[2:]), **toggle_args)
+            cmd['llm'].prompt(' '.join(args[2:]), **option_args)
             exit(0)
 
     # unknown error

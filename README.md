@@ -1,5 +1,5 @@
 # Overview
-`q` is an LLM-powered copilot for the command line, designed to keep programers in the terminal and reduce time spent looking up syntax. It can generate shell commands, write Python scripts, construct regex patterns, and more, all from the comfort of your command line.
+`q` is an LLM-powered copilot for the command line, designed to keep programers in the terminal and reduce time spent looking things up. It can generate shell commands, write Python scripts, construct regex patterns, and more, all from the comfort of your command line.
 
 # Installation
 
@@ -19,7 +19,7 @@
 
 # Usage
 
-- Below is the basic syntax for using `q`. For a full list of commands, run `q -h`.
+- Below is the basic syntax for using `q`. For a full list of commands and options, run `q -h`.
 
     ```
     q [command] TEXT [options]
