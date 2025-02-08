@@ -21,7 +21,7 @@ class LLM(ABC):
 
     # default resource paths
     resource_dir = os.path.expanduser('~/.q')
-    openai_key_file = os.path.join(resource_dir, 'openai_key.txt')
+    openai_key_file = os.path.join(resource_dir, 'openai.key')
     messages_file = os.path.join(resource_dir, 'messages.json')
 
     default_model_args = {
