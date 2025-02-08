@@ -13,34 +13,45 @@ import pyperclip
 from openai import OpenAI
 from termcolor import colored
 
+# default resource paths
+RESOURCE_DIR = os.path.expanduser('~/.q')
+OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')
+MESSAGES_FILE = os.path.join(RESOURCE_DIR, 'messages.json')
+
+# model variants
+MINI_LLM = 'gpt-4o-mini' # faster and cheaper
+FULL_LLM = 'gpt-4o'      # more powerful and expensive
 
 class LLM(ABC):
     """
     Abstract base class for a language model. Subclasses must implement the `model` and `messages` methods, and may override the `model_args` method.
     """
 
-    # default resource paths
-    resource_dir = os.path.expanduser('~/.q')
-    openai_key_file = os.path.join(resource_dir, 'openai.key')
-    messages_file = os.path.join(resource_dir, 'messages.json')
-
     default_model_args = {
-        'temperature': 0.0,
         'max_tokens': 128,
+        'temperature': 0.0,
         'frequency_penalty': 0,
         'presence_penalty': 0,
         'top_p': 1,
         'stop': None
     }
 
+    long_max_tokens = 1024
+
     @classmethod
     def prompt(cls, text: str, **option_args) -> str:
+        # load model and messagees from subclass
+        model = cls.model()
         model_args = {**cls.default_model_args, **cls.model_args()}
         messages = cls.messages(text)
 
+        # set max tokens for long responses
+        if option_args.get('long', False):
+            model_args['max_tokens'] = cls.long_max_tokens
+
         # send messages to the LLM
         response = cls.client().chat.completions.create(
-            model=cls.model(),
+            model=model,
             messages=messages,
             **model_args
         ).choices[0].message.content
@@ -72,24 +83,24 @@ class LLM(ABC):
     def client(cls) -> OpenAI:
         while True:
             try:
-                with open(cls.openai_key_file) as f:
+                with open(OPENAI_KEY_FILE) as f:
                     client = OpenAI(api_key=f.read())
                     client.models.list() # test the API key
                     return client
             except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
                 print(colored(f'Error: OpenAI API key not found. Please paste your API key:', 'red'), end='', flush=True)
-                os.makedirs(cls.resource_dir, exist_ok=True)
-                with open(cls.openai_key_file, 'w') as f:
+                os.makedirs(RESOURCE_DIR, exist_ok=True)
+                with open(OPENAI_KEY_FILE, 'w') as f:
                     f.write(getpass.getpass(prompt=''))
 
     @classmethod
     def save_messages(cls, messages: list):
-        with open(cls.messages_file, 'w') as f:
+        with open(MESSAGES_FILE, 'w') as f:
             json.dump(messages, f, indent=4)
 
     @classmethod
     def load_messages(cls) -> list:
-        with open(cls.messages_file) as f:
+        with open(MESSAGES_FILE) as f:
             return json.load(f)
 
     @classmethod
@@ -110,13 +121,19 @@ class FollowupLLM(LLM):
     """
     A stateful language model that can respond to prompts about previous messages.
     """
-    
-    @classmethod
-    def model(cls) -> str:
-        return 'gpt-4o'
 
     @classmethod
-    def messages(cls, text) -> list:
+    def model(cls) -> str:
+        return FULL_LLM
+    
+    @classmethod
+    def model_args(cls) -> dict:
+        return {
+            'max_tokens': 256,
+        }
+
+    @classmethod
+    def messages(cls, text: str) -> list:
         return cls.load_messages() + [
             {
                 'role': 'user',
@@ -131,10 +148,10 @@ class BashLLM(LLM):
 
     @classmethod
     def model(cls) -> str:
-        return 'gpt-4o-mini'
+        return MINI_LLM
 
     @classmethod
-    def messages(cls, text) -> list:
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -153,7 +170,7 @@ class PythonLLM(LLM):
 
     @classmethod
     def model(cls) -> str:
-        return 'gpt-4o'
+        return FULL_LLM
     
     @classmethod
     def model_args(cls) -> dict:
@@ -162,7 +179,7 @@ class PythonLLM(LLM):
         }
 
     @classmethod
-    def messages(cls, text) -> list:
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -181,10 +198,10 @@ class RegexLLM(LLM):
 
     @classmethod
     def model(cls) -> str:
-        return 'gpt-4o-mini'
+        return MINI_LLM
 
     @classmethod
-    def messages(cls, text) -> list:
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -203,16 +220,17 @@ class RephraseLLM(LLM):
 
     @classmethod
     def model(cls) -> str:
-        return 'gpt-4o'
+        return FULL_LLM
     
     @classmethod
     def model_args(cls) -> dict:
         return {
+            'max_tokens': 256,
             'temperature': 0.3
         }
 
     @classmethod
-    def messages(cls, text) -> list:
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -231,10 +249,10 @@ class WorkplaceLLM(LLM):
 
     @classmethod
     def model(cls) -> str:
-        return 'gpt-4o'
+        return FULL_LLM
 
     @classmethod
-    def messages(cls, text) -> list:
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -250,13 +268,20 @@ class ChatLLM(LLM):
     """
     A conversational language model that can respond to anything.
     """
-    
-    @classmethod
-    def model(cls) -> str:
-        return 'gpt-4o'
 
     @classmethod
-    def messages(cls, text) -> list:
+    def model(cls) -> str:
+        return FULL_LLM
+
+    @classmethod
+    def model_args(cls) -> dict:
+        return {
+            'max_tokens': 256,
+            'temperature': 0.3,
+        }
+
+    @classmethod
+    def messages(cls, text: str) -> list:
         return [
             { 
                 'role': 'system', 
@@ -308,21 +333,26 @@ def main(args):
     ]
 
     options = [
+        {
+            'name': 'long',
+            'flags': ['-l', '--long'],
+            'description': 'enable longer responses (note: more expensive)',
+        },
+        # {
+        #     'name': 'reasoning',
+        #     'flags': ['-o', '--reasoning'],
+        #     'description': 'use a reasoning model (note: this is very expensive)',
+        # },
+        {
+            'name': 'no-clip',
+            'flags': ['-n', '--no-clip'],
+            'description': 'do not copy the output to the clipboard',
+        },
         { 
             'name': 'verbose',
             'flags': ['-v', '--verbose'],
             'description': 'print the message and response history',
         },
-        {
-            'name': 'no-clip',
-            'flags': ['-n', '--no-clip'],
-            'description': 'do not copy the output to the clipboard',
-        }
-        # {
-        #     'name': 'reasoning',
-        #     'flags': ['-o', '--reasoning'],
-        #     'description': 'use a reasoning model (note: this is much more expensive)',
-        # }
     ]
 
     # help text

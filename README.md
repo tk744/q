@@ -25,7 +25,6 @@
     q [command] TEXT [options]
     ```
 
-- Omit a command to chat about the previous response. This enables may useful follow-up interactions.
 - `q` stores each output to the clipboard, so you can paste it wherever you need it.
 
 ## Commands
@@ -67,27 +66,29 @@
 - Rephrase text for improved fluency using the `-r` or `--rephrase` command:
 
     ```
-    $ ./q -r The project was delayed due to unexpected issues we hadnt anticipated.
-    The project was delayed due to unforeseen issues.
+    $ q -r watchin haters wonder why gambino got the game locked
+    Watching critics wonder why Gambino dominates the game.
     ```
 
-- Write a professional workplace message using the `-w` or `--workplace` command:
+<!-- - Write a professional workplace message using the `-w` or `--workplace` command:
 
     ```
     $ q -w tell my manager he sucks at his job
     I have some concerns about certain aspects of our workflow and would appreciate discussing ways we can improve our processes. Could we schedule a time to talk about this?
-    ```
+    ``` -->
 
 - Prompt a regular language model using the `-c` or `--chat` command:
 
     ```
     $ q -c give me a punchline without the setup
-    "That's why you never trust a ladder—it’s always up to something!"
+    "…and that's why you never trust a penguin with your ice cream!"
     ```
 
 ## Follow-up Interactions
 
-- Fix errors and add context:
+Omitting a command enables chatting about the previous response, which allows for many useful follow-up interactions.
+
+- Iterative refinement:
 
     ```
     $ q -b get cuda version
@@ -113,3 +114,23 @@
     $ ./q what does '**' do
     In Python, the `**` operator is used to unpack dictionaries. When used in the context of merging dictionaries, `**` allows you to unpack the key-value pairs of a dictionary into another dictionary. This ...
     ```
+
+## Options
+
+Options are boolean flags that modify the behavior of `q`. Combine options using their abbreviated form after a single hyphen. (e.g. `-nv`).
+
+- Increase the max token length of responses using the `-l` or `--longer` option.
+
+- Disable storing responses to the clipboard using the `-n` or `--no-clipboard` option.
+
+- Print the message and response history using the `-v` or `--verbose` option.
+
+# Adding Custom Commands
+
+`q` is easily extensible. To modify the script and add a new command:
+
+1. Create a subclass of `LLM` and implement the `model()` and `messages()` methods, and optionally the `model_args()` method. Note that these are class methods.
+
+2. Add the new command, its command-line flags, and command-line description to the `commands` list in the `main()` function. The command should be an instance of the subclass created in step 1.
+
+Refer to the implementation of the existing commands for examples.
