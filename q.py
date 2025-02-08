@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 
-import argparse
+# standard library imports
 import getpass
 import json
-import openai
 import os
-import pyperclip
-
+import sys
 from abc import ABC, abstractmethod
+
+# third-party imports
+import openai
+import pyperclip
 from openai import OpenAI
 from termcolor import colored
 
-
-class SingleMetavarHelpFormatter(argparse.HelpFormatter):
-    """Custom HelpFormatter to display `--cmd TEXT` instead of `--cmd TEXT [TEXT ...]`."""
-    def _format_args(cls, action, default_metavar):
-        if action.nargs == "+":
-            return action.metavar  # Show only 'TEXT' instead of 'TEXT [TEXT ...]'
-        return super()._format_args(action, default_metavar)
 
 class LLM(ABC):
     """
@@ -39,7 +34,7 @@ class LLM(ABC):
     }
 
     @classmethod
-    def prompt(cls, text: str, verbose=False) -> str:
+    def prompt(cls, text: str, **toggle_args) -> str:
         model_args = {**cls.default_model_args, **cls.model_args()}
         messages = cls.messages(text)
 
@@ -61,8 +56,7 @@ class LLM(ABC):
         cls.save_messages(messages)
 
         # print messages and response depending on verbosity
-        print()
-        if verbose:
+        if toggle_args.get('verbose', False):
             for message in messages:
                 print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
         else:
@@ -246,38 +240,109 @@ class RegexLLM(LLM):
             }
         ]
 
+def main(args):
+    commands = [
+        {
+            'llm': RecallLLM,
+            'flags': [], # default LLM
+            'description': 'chat about the previous response',
+        },
+        {
+            'llm': ChatLLM,
+            'flags': ['-c', '--chat'],
+            'description': 'prompt a regular language model',
+        },
+        {
+            'llm': RewriteLLM,
+            'flags': ['-r', '--rewrite'],
+            'description': 'rewrite text for improved phrasing',
+        },
+        {
+            'llm': BashLLM,
+            'flags': ['-b', '--bash'],
+            'description': 'generate a Bash command from a description',
+        },
+        {
+            'llm': PythonLLM,
+            'flags': ['-p', '--python'],
+            'description': 'generate a Python script from a description',
+        },
+        {
+            'llm': RegexLLM,
+            'flags': ['-x', '--regex'],
+            'description': 'generate a Python regex pattern from a description',
+        },
+    ]
+
+    toggles = [
+        { 
+            'name': 'verbose',
+            'flags': ['-v', '--verbose'],
+            'description': 'print the message and response history',
+        },
+        # {
+        #     'name': 'reasoning',
+        #     'flags': ['-o', '--reasoning'],
+        #     'description': 'use a reasoning model (note: this is much more expensive)',
+        # }
+    ]
+
+    # help text
+    tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in commands + toggles) + 3
+    help_text = 'q is an LLM-powered command-line copilot that generates code and text used most by programmers.'
+    help_text += '\n\nUsage: ' + colored(f'{os.path.basename(args[0])} [command] TEXT [toggles]', 'green')
+    help_text += '\n\nCommands (one required):\n'
+    help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(cmd["flags"]) if cmd["flags"] else "TEXT":<{flag_len}}', 'green') + f'{cmd["description"]}' for cmd in commands])
+    help_text += '\n\nToggles (optional):\n'
+    help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(tog["flags"]):<{flag_len}}', 'green') + f'{tog["description"]}' for tog in toggles])
+
+    # print help text if no arguments or -h/--help flag is provided
+    if len(args) == 1 or args[1] in ['-h', '--help']:
+        print(help_text)
+        exit(0)
+
+    # check if there is more than one command
+    all_commands = [flag for cmd in commands for flag in cmd['flags']]
+    if len([arg for arg in args[1:] if arg in all_commands]) > 1:
+        print(colored(f'Error: Only one command may be provided.', 'red'))
+        exit(1)
+
+    # check if there is a command that is not the first argument
+    if len([arg for arg in args[1:] if arg in all_commands]) == 1 and args[1] not in all_commands:
+        print(colored(f'Error: Command must be the first argument.', 'red'))
+        exit(1)
+
+    # check if the first argument is an invalid command
+    if args[1].startswith('-') and args[1] not in all_commands:
+        print(colored(f'Error: Invalid command "{args[1]}".', 'red'))
+        exit(1)
+
+    # check if there is no text provided
+    if len(args) < 3:
+        print(colored(f'Error: No text provided.', 'red'))
+        exit(1)
+
+    # get toggles and remove them from the arguments
+    # TODO: only check for toggles before or after the text, not within it
+    toggle_args = {tog['name']: any(flag in args[1:] for flag in tog['flags']) for tog in toggles}
+    args = [arg for arg in args if arg not in [flag for tog in toggles for flag in tog['flags']]]
+
+    # if the first argument is not a command, use the default LLM
+    if args[1] not in all_commands:
+        default_llms = [cmd['llm'] for cmd in commands if not cmd['flags']]
+        assert len(default_llms) == 1, 'Programming error: There is more than one default LLM.'
+        default_llms[0].prompt(' '.join(args[1:]), **toggle_args)
+        exit(0)
+
+    # if the first argument is a command, use the corresponding LLM
+    for cmd in commands:
+        if args[1] in cmd['flags']:
+            cmd['llm'].prompt(' '.join(args[2:]), **toggle_args)
+            exit(0)
+
+    # unknown error
+    print(colored(f'Error: An unknown error occurred.', 'red'))
+    exit(1)
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='q is an LLM-powered command-line copilot that generates code and text used most by programmers.', 
-        formatter_class=SingleMetavarHelpFormatter # custom formatter
-    )
-
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-c', '--chat', metavar='TEXT', nargs='+', type=str, help='prompt the LLM about anything')
-    group.add_argument('-r', '--rewrite', metavar='TEXT', nargs='+', type=str, help='rewrite text for improved phrasing')
-    group.add_argument('-b', '--bash', metavar='TEXT', nargs='+', type=str, help='generate a Bash command from a description')
-    group.add_argument('-p', '--python', metavar='TEXT', nargs='+', type=str, help='generate a Python script from a description')
-    group.add_argument('-x', '--regex', metavar='TEXT', nargs='+', type=str, help='generate a Python regex pattern from a description')
-    group.add_argument('text', metavar='TEXT', nargs='*', type=str, help='chat about the previous response')
-    
-    parser.add_argument('-v', '--verbose', action='store_true', help='print the LLM messages and response')
-
-    # TODO:
-    # group.add_argument('-e', '--explain', metavar='TEXT', nargs='+', type=str, help='Explain a concept or code snippet')
-
-    args = parser.parse_args()
-
-    if args.chat:
-        ChatLLM.prompt(' '.join(args.chat), args.verbose)
-    elif args.rewrite:
-        RewriteLLM.prompt(' '.join(args.rewrite), args.verbose)
-    elif args.bash:
-        BashLLM.prompt(' '.join(args.bash), args.verbose)
-    elif args.python:
-        PythonLLM.prompt(' '.join(args.python), args.verbose)
-    elif args.regex:
-        RegexLLM.prompt(' '.join(args.regex), args.verbose)
-    elif args.text:
-        RecallLLM.prompt(' '.join(args.text), args.verbose)
-    else:
-        parser.print_help()
+    main(sys.argv)
