@@ -25,7 +25,8 @@
     q [command] TEXT [options]
     ```
 
-- `q` stores the output of each command to the clipboard, so you can paste it wherever you need it.
+- Omit a command to chat about the previous response. This enables may useful follow-up interactions.
+- `q` stores each output to the clipboard, so you can paste it wherever you need it.
 
 ## Commands
 
@@ -63,16 +64,30 @@
     `(?:(?:https?://)?(?:www\.)?([^/]+))`
     ```
 
+- Rephrase text for improved fluency using the `-r` or `--rephrase` command:
+
+    ```
+    $ ./q -r The project was delayed due to unexpected issues we hadnt anticipated.
+    The project was delayed due to unforeseen issues.
+    ```
+
+- Write a professional workplace message using the `-w` or `--workplace` command:
+
+    ```
+    $ q -w tell my manager he sucks at his job
+    I have some concerns about certain aspects of our workflow and would appreciate discussing ways we can improve our processes. Could we schedule a time to talk about this?
+    ```
+
 - Prompt a regular language model using the `-c` or `--chat` command:
 
     ```
-    $ q -c write a short sentence where every word starts with q
-    Quickly, Quentin questioned quirky quokkas quietly.
+    $ q -c give me a punchline without the setup
+    "That's why you never trust a ladder—it’s always up to something!"
     ```
 
-## Iterative Refinement
+## Follow-up Interactions
 
-- Omitting the command allows for follow-up interaction with the last response, enabling quick refinements without starting from scratch:
+- Fix errors and add context:
 
     ```
     $ q -b get cuda version
@@ -87,4 +102,14 @@
     nvidia-smi | grep "CUDA Version"
     $ nvidia-smi | grep "CUDA Version"
     | NVIDIA-SMI 560.35.02    Driver Version: 560.94    CUDA Version: 12.6 |
+    ```
+
+- Ask for explanations:
+
+    ```
+    $ ./q -p function to merge two dictionaries x and y
+    def merge_dictionaries(x, y):
+        return {**x, **y}
+    $ ./q what does '**' do
+    In Python, the `**` operator is used to unpack dictionaries. When used in the context of merging dictionaries, `**` allows you to unpack the key-value pairs of a dictionary into another dictionary. This ...
     ```

@@ -26,7 +26,7 @@ class LLM(ABC):
 
     default_model_args = {
         'temperature': 0.0,
-        'max_tokens': 256,
+        'max_tokens': 128,
         'frequency_penalty': 0,
         'presence_penalty': 0,
         'top_p': 1,
@@ -106,7 +106,7 @@ class LLM(ABC):
     def messages(cls, text=None) -> list:
         pass
 
-class RecallLLM(LLM):
+class FollowupLLM(LLM):
     """
     A stateful language model that can respond to prompts about previous messages.
     """
@@ -121,50 +121,6 @@ class RecallLLM(LLM):
             {
                 'role': 'user',
                 'content': text
-            }
-        ]
-
-class ChatLLM(LLM):
-    """
-    A conversational language model that can respond to anything.
-    """
-    
-    @classmethod
-    def model(cls) -> str:
-        return 'gpt-4o'
-
-    @classmethod
-    def messages(cls, text) -> list:
-        return [
-            { 
-                'role': 'system', 
-                'content': 'You are a helpful and knowledgeable AI assistant.'
-            },
-            {
-                'role': 'user',
-                'content': text
-            }
-        ]
-
-class RewriteLLM(LLM):
-    """
-    A language model that rewrites text for clarity, accuracy, and readability.
-    """
-
-    @classmethod
-    def model(cls) -> str:
-        return 'gpt-4o'
-
-    @classmethod
-    def messages(cls, text) -> list:
-        return [
-            { 
-                'role': 'system', 
-                'content': 'You are a skilled writing assistant specializing in improving the clarity, conciseness, and correctness of written text. Your goal is to rephrase input text while preserving its original meaning, improving word choice, grammar, and flow. Ensure that the output is professional, precise, and natural-sounding. Do not add or remove significant information unless necessary for clarity.'
-            },
-            {
-                'role': 'user',
-                'content': f'Improve the following text for clarity, accuracy, and readability while keeping the original meaning.\n{text}'
             }
         ]
 
@@ -202,7 +158,7 @@ class PythonLLM(LLM):
     @classmethod
     def model_args(cls) -> dict:
         return {
-            'max_tokens': 1024
+            'max_tokens': 512
         }
 
     @classmethod
@@ -240,22 +196,84 @@ class RegexLLM(LLM):
             }
         ]
 
+class RephraseLLM(LLM):
+    """
+    A language model that rephrases text for clarity and fluency.
+    """
+
+    @classmethod
+    def model(cls) -> str:
+        return 'gpt-4o'
+    
+    @classmethod
+    def model_args(cls) -> dict:
+        return {
+            'temperature': 0.3
+        }
+
+    @classmethod
+    def messages(cls, text) -> list:
+        return [
+            { 
+                'role': 'system', 
+                'content': 'You are an advanced language model specialized in rephrasing text for clarity, fluency, and conciseness. Your goal is to improve readability and coherence while preserving the original meaning. Ensure the output is grammatically correct, natural, and precise. Eliminate redundancy by removing unnecessary words and simplifying overly complex structures without losing essential details. Maintain technical accuracy for specialized content and adapt the phrasing to suit the audience if specified. Avoid altering factual content, tone, or intent unless explicitly requested.',
+            },
+            {
+                'role': 'user',
+                'content': f'Rephrase the following text to improve clarity, fluency, and conciseness: {text}'
+            }
+        ]
+
+class WorkplaceLLM(LLM):
+    """
+    A language model that generates messages for workplace communication.
+    """
+
+    @classmethod
+    def model(cls) -> str:
+        return 'gpt-4o'
+
+    @classmethod
+    def messages(cls, text) -> list:
+        return [
+            { 
+                'role': 'system', 
+                'content': 'You are an assistant that writes workplace chat messages in a professional tone for communication with managers and coworkers. Your goal is to transform input messages into clear, workplace-appropriate language without altering intent, adding personal judgments, or providing unsolicited advice. Maintain a neutral or positive tone as appropriate. Do not use formal or flowery language, and avoid greetings and unnecessary pleasantries unless requested.'
+            },
+            {
+                'role': 'user',
+                'content': f'Write a clear and professional chat message for the following task: {text}'
+            }
+        ]
+    
+class ChatLLM(LLM):
+    """
+    A conversational language model that can respond to anything.
+    """
+    
+    @classmethod
+    def model(cls) -> str:
+        return 'gpt-4o'
+
+    @classmethod
+    def messages(cls, text) -> list:
+        return [
+            { 
+                'role': 'system', 
+                'content': 'You are a helpful and knowledgeable AI assistant.'
+            },
+            {
+                'role': 'user',
+                'content': text
+            }
+        ]
+
 def main(args):
     commands = [
         {
-            'llm': RecallLLM,
+            'llm': FollowupLLM,
             'flags': [], # default LLM
             'description': 'chat about the previous response',
-        },
-        {
-            'llm': ChatLLM,
-            'flags': ['-c', '--chat'],
-            'description': 'prompt a regular language model',
-        },
-        {
-            'llm': RewriteLLM,
-            'flags': ['-r', '--rewrite'],
-            'description': 'rewrite text for improved phrasing',
         },
         {
             'llm': BashLLM,
@@ -271,6 +289,21 @@ def main(args):
             'llm': RegexLLM,
             'flags': ['-x', '--regex'],
             'description': 'generate a Python regex pattern from a description',
+        },
+        {
+            'llm': RephraseLLM,
+            'flags': ['-r', '--rephrase'],
+            'description': 'rephrase text for improved fluency',
+        },
+        {
+            'llm': WorkplaceLLM,
+            'flags': ['-w', '--workplace'],
+            'description': 'write a professional workplace message',
+        },
+        {
+            'llm': ChatLLM,
+            'flags': ['-c', '--chat'],
+            'description': 'prompt a regular language model',
         },
     ]
 
@@ -322,8 +355,8 @@ def main(args):
         print(colored(f'Error: Invalid command "{args[1]}".', 'red'))
         exit(1)
 
-    # check if there is no text provided
-    if len(args) < 3:
+    # check if there is no text provided for a command
+    if args[1] in cmd_flags and len(args) < 3:
         print(colored(f'Error: No text provided.', 'red'))
         exit(1)
 
