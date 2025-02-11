@@ -127,10 +127,11 @@ Options are boolean flags that modify the behavior of `q`. Combine options using
 
 # Adding Custom Commands
 
-`q` is easily extensible. To modify the script and add a new command:
+`q` was designed to be easily extensible. To add a custom command, simply add a new entry to the `COMMANDS` list in the script. Each entry is a dictionary with the following keys:
+- `flags` *(required)*: A list of flags to invoke the command.
+- `description` *(required)*: A brief description of the command.
+- `messages` *(required)*: The prompts sent to the LLM, using `{text}` as a placeholder for the input text.
+- `model` *(optional)*: Override the default model set in `DEFAULT_MODEL`.
+- `model_args` *(optional)*: Override the default model arguments set in `DEFAULT_LLM_ARGS`.
 
-1. Create a subclass of `LLM` and implement the `model()` and `messages()` methods, and optionally the `model_args()` method. Note that these are class methods.
-
-2. Add the new command, its command-line flags, and command-line description to the `commands` list in the `main()` function. The command should be an instance of the subclass created in step 1.
-
-Refer to the implementation of the existing commands for examples.
+Refer to the existing commands in the script for examples.
