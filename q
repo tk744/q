@@ -4,6 +4,7 @@
 import getpass
 import json
 import os
+import re
 import sys
 
 # third-party imports
@@ -12,7 +13,7 @@ import pyperclip
 from openai import OpenAI
 from termcolor import colored
 
-# default resource paths
+# resource paths
 RESOURCE_DIR = os.path.expanduser('~/.q')
 OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')
 MESSAGES_FILE = os.path.join(RESOURCE_DIR, 'messages.json')
@@ -22,7 +23,7 @@ os.makedirs(RESOURCE_DIR, exist_ok=True)
 MINI_LLM = 'gpt-4o-mini' # faster and cheaper
 FULL_LLM = 'gpt-4o'      # more powerful and expensive
 
-# defaults
+# model defaults
 DEFAULT_LLM = MINI_LLM
 DEFAULT_MODEL_ARGS = {
     'max_tokens': 128,
@@ -34,81 +35,26 @@ DEFAULT_MODEL_ARGS = {
 }
 LONG_MAX_TOKENS = 512 # max tokens for long responses
 
-def save_messages(messages: list):
+
+def _save_messages(messages: list[dict]):
     with open(MESSAGES_FILE, 'w') as f:
         json.dump(messages, f, indent=4)
 
-def load_messages() -> list:
-    # create messages file if it doesn't exist
+def _load_messages() -> list[dict]:
     try:
         with open(MESSAGES_FILE) as f:
             return json.load(f)
     except FileNotFoundError:
-        save_messages([])
+        _save_messages([])
         return []
-    
-def get_client() -> OpenAI:
-        while True:
-            try:
-                with open(OPENAI_KEY_FILE) as f:
-                    client = OpenAI(api_key=f.read())
-                    client.models.list() # test the API key
-                    return client
-            except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
-                print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
-                with open(OPENAI_KEY_FILE, 'w') as f:
-                    f.write(getpass.getpass(prompt=''))
 
-def prompt_model(model, model_args, messages):
-    """
-    Prompts the specified model with the given messages and model arguments, and returns the response.
-    """
-    return get_client().chat.completions.create(
-        model=model,
-        messages=messages,
-        **model_args
-    ).choices[0].message.content
-
-def run_command(cmd, text, **opt_args):
-    # load model and messages from command
-    model = cmd.get('model', DEFAULT_LLM)
-    model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', dict())}
-    messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
-
-    # set max tokens for long responses
-    if opt_args.get('long', False):
-        model_args['max_tokens'] = LONG_MAX_TOKENS
-
-    # prompt the model
-    response = prompt_model(model, model_args, messages)
-
-    # remove markdown formatting from code responses
-    if response.startswith('```'):
-        response = response[response.find('\n')+1:]
-    if response.endswith('```'):
-        response = response[:response.rfind('\n')]
-
-    # save messages to file
-    messages.append({'role': 'assistant', 'content': response})
-    save_messages(messages)
-
-    # print messages and response depending on verbosity
-    if opt_args.get('verbose', False):
-        for message in messages:
-            print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
-    else:
-        print(response)
-
-    # copy response to clipboard
-    if not opt_args.get('no-clip', False):
-        pyperclip.copy(response)
 
 COMMANDS = [
     {
         'flags': [],
         'description': 'chat about the previous response',
         'model': FULL_LLM,
-        'messages': load_messages() + [
+        'messages': _load_messages() + [
             {
                 'role': 'user',
                 'content': '{text}'
@@ -239,6 +185,63 @@ OPTIONS = [
     #     'description': 'use a reasoning model (note: this is very expensive)',
     # },
 ]
+    
+def get_client() -> OpenAI:
+    while True:
+        try:
+            with open(OPENAI_KEY_FILE) as f:
+                client = OpenAI(api_key=f.read())
+                client.models.list() # test the API key
+                return client
+        except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
+            print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
+            with open(OPENAI_KEY_FILE, 'w') as f:
+                f.write(getpass.getpass(prompt=''))
+
+def prompt_model(model: str, model_args: dict, messages: list[dict]) -> str:
+    return get_client().chat.completions.create(
+        model=model,
+        messages=messages,
+        **model_args
+    ).choices[0].message.content
+
+def run_command(cmd: dict, text: str, **opt_args):
+    # load model and messages from command
+    model = cmd.get('model', DEFAULT_LLM)
+    model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', dict())}
+    messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
+
+    # set max tokens for long responses
+    if opt_args.get('long', False):
+        model_args['max_tokens'] = LONG_MAX_TOKENS
+
+    # prompt the model
+    response = prompt_model(model, model_args, messages)
+
+    # remove markdown formatting from code responses
+    if response.startswith('```'):
+        response = response[response.find('\n')+1:]
+    if response.endswith('```'):
+        response = response[:response.rfind('\n')]
+    
+    # # match ``` using re and delete it from newline to newline
+    # pattern = '(?:\\n|^).*```.*(?:\\n|$)'
+    # response = re.sub(pattern, '', response)
+
+    # save messages to file
+    messages.append({'role': 'assistant', 'content': response})
+    _save_messages(messages)
+
+    # print messages and response depending on verbosity
+    if opt_args.get('verbose', False):
+        for message in messages:
+            print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
+    else:
+        print(response)
+
+    # copy response to clipboard
+    if not opt_args.get('no-clip', False):
+        pyperclip.copy(response)
 
 def main(args):
     # help text
@@ -298,22 +301,24 @@ def main(args):
                     print(colored(f'Error: Invalid option "-{flags}".', 'red'))
                     exit(1)
 
-    # if the first argument is not a command, use the default LLM
-    if args[1] not in cmd_flags:
-        default_cmd = [cmd for cmd in COMMANDS if not cmd['flags']]
-        assert len(default_cmd) == 1, 'Programming error: There is more than one default LLM.'
-        run_command(default_cmd[0], ' '.join(args[1:]), **opt_args)
-        exit(0)
-
-    # if the first argument is a command, use the corresponding LLM
+    # run command
     for cmd in COMMANDS:
         if args[1] in cmd['flags']:
             run_command(cmd, ' '.join(args[2:]), **opt_args)
             exit(0)
-
-    # unknown error
-    print(colored(f'Error: An unknown error occurred.', 'red'))
-    exit(1)
+    # run default command
+    else:
+        default_cmds = [cmd for cmd in COMMANDS if not cmd['flags']]
+        if len(default_cmds) == 0:
+            print(colored(f'Error: No default command found.', 'red'))
+            exit(1)
+        elif len(default_cmds) > 1:
+            print(colored(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red'))
+            exit(1)
+        else:
+            cmd = default_cmds[0]
+            run_command(cmd, ' '.join(args[1:]), **opt_args)
+            exit(0)
 
 if __name__ == '__main__':
     main(sys.argv)
