@@ -163,20 +163,20 @@ COMMANDS = [
 ]
 
 OPTIONS = [
-    {
-        'name': 'long',
-        'flags': ['-l', '--longer'],
-        'description': 'enable longer responses (note: more expensive)',
+    { 
+        'name': 'debug',
+        'flags': ['-d', '--debug'],
+        'description': 'print the model parameters and message history',
     },
     {
         'name': 'no-clip',
         'flags': ['-n', '--no-clip'],
         'description': 'do not copy the output to the clipboard',
     },
-    { 
-        'name': 'verbose',
-        'flags': ['-v', '--verbose'],
-        'description': 'print the message and response history',
+    {
+        'name': 'longer',
+        'flags': ['-l', '--longer'],
+        'description': 'enable longer responses (note: may increase cost)',
     },
     # {
     #     'name': 'reasoning',
@@ -211,7 +211,7 @@ def run_command(cmd: dict, text: str, **opt_args):
     messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
 
     # set max tokens for long responses
-    if opt_args.get('long', False):
+    if opt_args.get('longer', False):
         model_args['max_tokens'] = LONG_MAX_TOKENS
 
     # prompt the model
@@ -227,10 +227,15 @@ def run_command(cmd: dict, text: str, **opt_args):
     messages.append({'role': 'assistant', 'content': response})
     _save_messages(messages)
 
-    # print messages and response depending on verbosity
-    if opt_args.get('verbose', False):
+    # print output
+    if opt_args.get('debug', False):
+        print(colored('MODEL PARAMETERS:', 'red'))
+        print(colored('model:', 'green'), model)
+        for arg in model_args:
+            print(colored(f'{arg}:', 'green'), model_args[arg])
+        print('\n'+colored('MESSAGES:', 'red'))
         for message in messages:
-            print(colored(f'{message["role"].capitalize()}:', 'red'), message['content'], end='\n\n')
+            print(colored(f'{message["role"].capitalize()}:', 'green'), message['content'])
     else:
         print(response)
 

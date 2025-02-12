@@ -119,11 +119,13 @@ Omitting a command enables chatting about the previous response, which allows fo
 
 Options are boolean flags that modify the behavior of `q`. Combine options using their abbreviated form after a single hyphen. (e.g. `-nv`).
 
-- Increase the max token length of responses using the `-l` or `--longer` option.
+- Print the model parameters and message history using the `-d` or `--debug` option.
 
-- Disable storing responses to the clipboard using the `-n` or `--no-clipboard` option.
+- Disable storing responses to the clipboard using the `-n` or `--no-clip` option.
 
-- Print the message and response history using the `-v` or `--verbose` option.
+- Increase the max token length of responses using the `-l` or `--longer` option. Note this may increase the cost of API calls.
+
+
 
 # Adding Custom Commands
 
