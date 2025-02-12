@@ -4,7 +4,6 @@
 import getpass
 import json
 import os
-import re
 import sys
 
 # third-party imports
@@ -223,10 +222,6 @@ def run_command(cmd: dict, text: str, **opt_args):
         response = response[response.find('\n')+1:]
     if response.endswith('```'):
         response = response[:response.rfind('\n')]
-    
-    # # match ``` using re and delete it from newline to newline
-    # pattern = '(?:\\n|^).*```.*(?:\\n|$)'
-    # response = re.sub(pattern, '', response)
 
     # save messages to file
     messages.append({'role': 'assistant', 'content': response})
@@ -241,11 +236,14 @@ def run_command(cmd: dict, text: str, **opt_args):
 
     # copy response to clipboard
     if not opt_args.get('no-clip', False):
-        pyperclip.copy(response)
+        try:
+            pyperclip.copy(response)
+        except pyperclip.PyperclipException:
+            pass # ignore clipboard errors
 
 def main(args):
     # help text
-    tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in COMMANDS + OPTIONS) + 3
+    tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in COMMANDS + OPTIONS) + 2
     help_text = 'q is an LLM-powered programming copilot from the comfort of your command line.'
     help_text += '\n\nUsage: ' + colored(f'{os.path.basename(args[0])} [command] TEXT [options]', 'green')
     help_text += '\n\nCommands (one required):\n'

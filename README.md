@@ -25,7 +25,7 @@
     q [command] TEXT [options]
     ```
 
-- `q` stores each output to the clipboard, so you can paste it wherever you need it.
+- `q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers). Check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't.
 
 ## Commands
 
