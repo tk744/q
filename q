@@ -15,21 +15,31 @@ from termcolor import colored
 # resource paths
 RESOURCE_DIR = os.path.expanduser('~/.q')
 OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')  # api key
-MESSAGES_FILE = os.path.join(RESOURCE_DIR, 'messages.json') # message history
-# MODEL_FILE = os.path.join(RESOURCE_DIR, 'model_args.json')  # model arg history
+PREV_MESSAGES = os.path.join(RESOURCE_DIR, 'messages.json') # previous messages
+PREV_MODEL = os.path.join(RESOURCE_DIR, 'model_args.json')  # previous model parameters
 os.makedirs(RESOURCE_DIR, exist_ok=True)
 
 def _save_messages(messages: list[dict]):
-    with open(MESSAGES_FILE, 'w') as f:
+    with open(PREV_MESSAGES, 'w') as f:
         json.dump(messages, f, indent=4)
 
 def _load_messages() -> list[dict]:
     try:
-        with open(MESSAGES_FILE) as f:
+        with open(PREV_MESSAGES) as f:
             return json.load(f)
     except FileNotFoundError:
-        _save_messages([])
         return []
+    
+def _save_model_args(model_args: dict):
+    with open(PREV_MODEL, 'w') as f:
+        json.dump(model_args, f, indent=4)
+
+def _load_model_args() -> dict:
+    try:
+        with open(PREV_MODEL) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
 
 # model variants
 MINI_LLM = 'gpt-4o-mini' # faster and cheaper
@@ -53,9 +63,7 @@ COMMANDS = [
     {
         'flags': [],
         'description': 'follow-up on the previous response',
-        'model_args': {
-            'model': FULL_LLM
-        },
+        'model_args': _load_model_args(),
         'messages': _load_messages() + [
             {
                 'role': 'user',
@@ -208,15 +216,21 @@ def prompt_model(model: str, model_args: dict, messages: list[dict]) -> str:
 
 def run_command(cmd: dict, text: str, **opt_args):
     # load model and messages from command
-    model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', dict())}
+    model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', {})}
     messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
 
-    # overwrite previous message if requested
+    # save model args for follow-up commands
+    _save_model_args(model_args)
+
+    # overwrite previous follow-up command
     if opt_args.get('overwrite', False):
         # remove messages from second-to-last user message to last user message
         user_msg_indices = [i for i, msg in enumerate(messages) if msg['role'] == 'user']
         if len(user_msg_indices) > 1:
             messages = messages[:user_msg_indices[-2]] + messages[user_msg_indices[-1]:]
+        else:
+            print(colored(f'Error: No previous command to overwrite.', 'red'))
+            exit(1)
 
     # set max tokens for long responses
     if opt_args.get('longer', False):
@@ -231,7 +245,7 @@ def run_command(cmd: dict, text: str, **opt_args):
     if response.endswith('```'):
         response = response[:response.rfind('\n')]
 
-    # save messages to file
+    # save messages for follow-up commands
     messages.append({'role': 'assistant', 'content': response})
     _save_messages(messages)
 
