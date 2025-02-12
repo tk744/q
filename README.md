@@ -84,9 +84,9 @@
     "…and that's why you never trust a penguin with your ice cream!"
     ```
 
-## Follow-up Interactions
+## Follow-up Commands
 
-Omitting an explicit command enables chatting about the previous response. This creates a command chain, which allows for many useful follow-up interactions.
+`q` allows you to build on previous responses by prompting it without an explicit command. This enables many useful follow-up interactions.
 
 - Iterative refinement:
 
@@ -105,7 +105,7 @@ Omitting an explicit command enables chatting about the previous response. This 
     | NVIDIA-SMI 560.35.02    Driver Version: 560.94    CUDA Version: 12.6 |
     ```
 
-- Ask for explanations:
+- Asking for explanations and clarifications:
 
     ```
     $ ./q -p function to merge two dictionaries x and y
@@ -119,7 +119,7 @@ Omitting an explicit command enables chatting about the previous response. This 
 
 Options are boolean flags that modify the behavior of `q`. They can be combined using their abbreviated forms following a single hyphen. (e.g. `-vo`).
 
-- Overwrite the previous command in a command chain using the `-o` or `--overwrite` option.
+- Overwrite the previous follow-up command using the `-o` or `--overwrite` option.
 
 - Increase the max token length of responses using the `-l` or `--longer` option. *Note: this may increase the cost of API calls.*
 
@@ -131,10 +131,9 @@ Options are boolean flags that modify the behavior of `q`. They can be combined 
 # Adding Custom Commands
 
 `q` was designed to be easily extensible. To add a custom command, simply add a new entry to the `COMMANDS` list in the script. Each entry is a dictionary with the following keys:
-- `flags` *(required)*: A list of flags to invoke the command.
-- `description` *(required)*: A brief description of the command.
-- `messages` *(required)*: The prompts sent to the LLM, using `{text}` as a placeholder for the input text.
-- `model` *(optional)*: Override the default model set in `DEFAULT_MODEL`.
-- `model_args` *(optional)*: Override the default model arguments set in `DEFAULT_LLM_ARGS`.
+- `flags` *(required)*: a list of flags to invoke the command.
+- `description` *(required)*: a brief description of the command.
+- `messages` *(required)*: the instructions sent to the LLM, using `{text}` as a placeholder for the input text.
+- `model_args` *(optional)*: override default model arguments set in `DEFAULT_MODEL_ARGS`.
 
 Refer to the existing commands in the script for examples.

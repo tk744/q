@@ -14,26 +14,10 @@ from termcolor import colored
 
 # resource paths
 RESOURCE_DIR = os.path.expanduser('~/.q')
-OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')
-MESSAGES_FILE = os.path.join(RESOURCE_DIR, 'messages.json')
+OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')  # api key
+MESSAGES_FILE = os.path.join(RESOURCE_DIR, 'messages.json') # message history
+# MODEL_FILE = os.path.join(RESOURCE_DIR, 'model_args.json')  # model arg history
 os.makedirs(RESOURCE_DIR, exist_ok=True)
-
-# model variants
-MINI_LLM = 'gpt-4o-mini' # faster and cheaper
-FULL_LLM = 'gpt-4o'      # more powerful and expensive
-
-# model defaults
-DEFAULT_LLM = MINI_LLM
-DEFAULT_MODEL_ARGS = {
-    'max_tokens': 128,
-    'temperature': 0.0,
-    'frequency_penalty': 0,
-    'presence_penalty': 0,
-    'top_p': 1,
-    'stop': None
-}
-LONG_MAX_TOKENS = 512 # max tokens for long responses
-
 
 def _save_messages(messages: list[dict]):
     with open(MESSAGES_FILE, 'w') as f:
@@ -47,12 +31,31 @@ def _load_messages() -> list[dict]:
         _save_messages([])
         return []
 
+# model variants
+MINI_LLM = 'gpt-4o-mini' # faster and cheaper
+FULL_LLM = 'gpt-4o'      # more powerful and expensive
+
+# default model parameters
+DEFAULT_MODEL_ARGS = {
+    'model': MINI_LLM,
+    'max_tokens': 128,
+    'temperature': 0.0,
+    'frequency_penalty': 0,
+    'presence_penalty': 0,
+    'top_p': 1,
+    'stop': None
+}
+
+# option parameters
+LONG_MAX_TOKENS = 512 # max tokens for long responses
 
 COMMANDS = [
     {
         'flags': [],
-        'description': 'chat about the previous response',
-        'model': FULL_LLM,
+        'description': 'follow-up on the previous response',
+        'model_args': {
+            'model': FULL_LLM
+        },
         'messages': _load_messages() + [
             {
                 'role': 'user',
@@ -63,7 +66,6 @@ COMMANDS = [
     {
         'flags': ['-b', '--bash'],
         'description': 'generate a Bash command from a description',
-        'model': MINI_LLM,
         'messages': [
             { 
                 'role': 'system', 
@@ -78,8 +80,8 @@ COMMANDS = [
     {
         'flags': ['-p', '--python'],
         'description': 'generate a Python script from a description',
-        'model': FULL_LLM,
         'model_args': {
+            'model': FULL_LLM,
             'max_tokens': 256
         },
         'messages': [
@@ -96,7 +98,6 @@ COMMANDS = [
     {
         'flags': ['-x', '--regex'],
         'description': 'generate a Python regex pattern from a description',
-        'model': MINI_LLM,
         'messages': [
             { 
                 'role': 'system', 
@@ -111,8 +112,8 @@ COMMANDS = [
     {
         'flags': ['-r', '--rephrase'],
         'description': 'rephrase text for improved fluency',
-        'model': FULL_LLM,
         'model_args' : {
+            'model': FULL_LLM,
             'max_tokens': 256
         },
         'messages': [
@@ -129,7 +130,9 @@ COMMANDS = [
     {
         'flags': ['-w', '--workplace'],
         'description': 'write a professional workplace message',
-        'model': FULL_LLM,
+        'model_args': {
+            'model': FULL_LLM
+        },
         'messages': [
             { 
                 'role': 'system', 
@@ -143,9 +146,9 @@ COMMANDS = [
     },
     {
         'flags': ['-c', '--chat'],
-        'description': 'prompt a regular language model',
-        'model': FULL_LLM,
+        'description': 'chat with a full language model',
         'model_args': {
+            'model': FULL_LLM,
             'max_tokens': 256,
             'temperature': 0.25,
         },
@@ -166,7 +169,7 @@ OPTIONS = [
     {
         'name': 'overwrite',
         'flags': ['-o', '--overwrite'],
-        'description': 'overwrite the previous message',
+        'description': 'overwrite the previous follow-up command',
     },
     {
         'name': 'longer',
@@ -183,11 +186,6 @@ OPTIONS = [
         'flags': ['-v', '--verbose'],
         'description': 'print the model parameters and message history',
     },
-    # {
-    #     'name': 'reasoning',
-    #     'flags': ['-o', '--reasoning'],
-    #     'description': 'use a reasoning model (note: this is very expensive)',
-    # },
 ]
     
 def get_client() -> OpenAI:
@@ -204,14 +202,12 @@ def get_client() -> OpenAI:
 
 def prompt_model(model: str, model_args: dict, messages: list[dict]) -> str:
     return get_client().chat.completions.create(
-        model=model,
         messages=messages,
         **model_args
     ).choices[0].message.content
 
 def run_command(cmd: dict, text: str, **opt_args):
     # load model and messages from command
-    model = cmd.get('model', DEFAULT_LLM)
     model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', dict())}
     messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
 
@@ -227,7 +223,7 @@ def run_command(cmd: dict, text: str, **opt_args):
         model_args['max_tokens'] = LONG_MAX_TOKENS
 
     # prompt the model
-    response = prompt_model(model, model_args, messages)
+    response = prompt_model(model_args['model'], model_args, messages)
 
     # remove markdown formatting from code responses
     if response.startswith('```'):
@@ -242,7 +238,6 @@ def run_command(cmd: dict, text: str, **opt_args):
     # print output
     if opt_args.get('verbose', False):
         print(colored('MODEL PARAMETERS:', 'red'))
-        print(colored('model:', 'green'), model)
         for arg in model_args:
             print(colored(f'{arg}:', 'green'), model_args[arg])
         print('\n'+colored('MESSAGES:', 'red'))
