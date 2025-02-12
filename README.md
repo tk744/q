@@ -86,7 +86,7 @@
 
 ## Follow-up Interactions
 
-Omitting a command enables chatting about the previous response, which allows for many useful follow-up interactions.
+Omitting an explicit command enables chatting about the previous response. This creates a command chain, which allows for many useful follow-up interactions.
 
 - Iterative refinement:
 
@@ -117,14 +117,15 @@ Omitting a command enables chatting about the previous response, which allows fo
 
 ## Options
 
-Options are boolean flags that modify the behavior of `q`. Combine options using their abbreviated form after a single hyphen. (e.g. `-nv`).
+Options are boolean flags that modify the behavior of `q`. They can be combined using their abbreviated forms following a single hyphen. (e.g. `-vo`).
 
-- Print the model parameters and message history using the `-d` or `--debug` option.
+- Overwrite the previous command in a command chain using the `-o` or `--overwrite` option.
+
+- Increase the max token length of responses using the `-l` or `--longer` option. *Note: this may increase the cost of API calls.*
 
 - Disable storing responses to the clipboard using the `-n` or `--no-clip` option.
 
-- Increase the max token length of responses using the `-l` or `--longer` option. Note this may increase the cost of API calls.
-
+- Print the model parameters and message history using the `-v` or `--verbose` option.
 
 
 # Adding Custom Commands

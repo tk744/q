@@ -163,20 +163,25 @@ COMMANDS = [
 ]
 
 OPTIONS = [
-    { 
-        'name': 'debug',
-        'flags': ['-d', '--debug'],
-        'description': 'print the model parameters and message history',
+    {
+        'name': 'overwrite',
+        'flags': ['-o', '--overwrite'],
+        'description': 'overwrite the previous message',
+    },
+    {
+        'name': 'longer',
+        'flags': ['-l', '--longer'],
+        'description': 'enable longer responses (note: may increase cost)',
     },
     {
         'name': 'no-clip',
         'flags': ['-n', '--no-clip'],
         'description': 'do not copy the output to the clipboard',
     },
-    {
-        'name': 'longer',
-        'flags': ['-l', '--longer'],
-        'description': 'enable longer responses (note: may increase cost)',
+    { 
+        'name': 'verbose',
+        'flags': ['-v', '--verbose'],
+        'description': 'print the model parameters and message history',
     },
     # {
     #     'name': 'reasoning',
@@ -210,6 +215,13 @@ def run_command(cmd: dict, text: str, **opt_args):
     model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', dict())}
     messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
 
+    # overwrite previous message if requested
+    if opt_args.get('overwrite', False):
+        # remove messages from second-to-last user message to last user message
+        user_msg_indices = [i for i, msg in enumerate(messages) if msg['role'] == 'user']
+        if len(user_msg_indices) > 1:
+            messages = messages[:user_msg_indices[-2]] + messages[user_msg_indices[-1]:]
+
     # set max tokens for long responses
     if opt_args.get('longer', False):
         model_args['max_tokens'] = LONG_MAX_TOKENS
@@ -228,7 +240,7 @@ def run_command(cmd: dict, text: str, **opt_args):
     _save_messages(messages)
 
     # print output
-    if opt_args.get('debug', False):
+    if opt_args.get('verbose', False):
         print(colored('MODEL PARAMETERS:', 'red'))
         print(colored('model:', 'green'), model)
         for arg in model_args:
