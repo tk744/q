@@ -58,7 +58,7 @@ DEFAULT_MODEL_ARGS = {
 }
 
 # option parameters
-LONG_MAX_TOKENS = 512 # max tokens for long responses
+LONG_MAX_TOKENS = 1024 # max tokens for long responses
 
 COMMANDS = [
     {
@@ -120,7 +120,7 @@ COMMANDS = [
     },
     {
         'flags': ['-r', '--rephrase'],
-        'description': 'rephrase text for improved fluency',
+        'description': 'rephrase text for enhanced fluency',
         'model_args' : {
             'model': FULL_LLM,
             'max_tokens': 256
@@ -161,7 +161,7 @@ OPTIONS = [
     {
         'name': 'overwrite',
         'flags': ['-o', '--overwrite'],
-        'description': 'overwrite the previous follow-up command',
+        'description': 'overwrite the previous command',
     },
     {
         'name': 'longer',
@@ -187,8 +187,12 @@ def get_client() -> OpenAI:
                 client = OpenAI(api_key=f.read())
                 client.models.list() # test the API key
                 return client
-        except (FileNotFoundError, openai.AuthenticationError, openai.APIConnectionError):
+        except FileNotFoundError:
             print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
+            with open(OPENAI_KEY_FILE, 'w') as f:
+                f.write(getpass.getpass(prompt=''))
+        except (openai.AuthenticationError, openai.APIConnectionError):
+            print(colored(f'Error: OpenAI API key not valid. Please paste your API key: ', 'red'), end='', flush=True)
             with open(OPENAI_KEY_FILE, 'w') as f:
                 f.write(getpass.getpass(prompt=''))
 
