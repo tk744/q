@@ -5,6 +5,7 @@ import getpass
 import json
 import os
 import sys
+from typing import List, Dict
 
 # third-party imports
 import openai
@@ -19,22 +20,22 @@ PREV_MESSAGES = os.path.join(RESOURCE_DIR, 'messages.json') # previous messages
 PREV_MODEL = os.path.join(RESOURCE_DIR, 'model_args.json')  # previous model parameters
 os.makedirs(RESOURCE_DIR, exist_ok=True)
 
-def _save_messages(messages: list[dict]):
+def _save_messages(messages: List[Dict]):
     with open(PREV_MESSAGES, 'w') as f:
         json.dump(messages, f, indent=4)
 
-def _load_messages() -> list[dict]:
+def _load_messages() -> List[Dict]:
     try:
         with open(PREV_MESSAGES) as f:
             return json.load(f)
     except FileNotFoundError:
         return []
     
-def _save_model_args(model_args: dict):
+def _save_model_args(model_args: Dict):
     with open(PREV_MODEL, 'w') as f:
         json.dump(model_args, f, indent=4)
 
-def _load_model_args() -> dict:
+def _load_model_args() -> Dict:
     try:
         with open(PREV_MODEL) as f:
             return json.load(f)
@@ -208,13 +209,13 @@ def get_client() -> OpenAI:
             with open(OPENAI_KEY_FILE, 'w') as f:
                 f.write(getpass.getpass(prompt=''))
 
-def prompt_model(model: str, model_args: dict, messages: list[dict]) -> str:
+def prompt_model(model: str, model_args: Dict, messages: List[Dict]) -> str:
     return get_client().chat.completions.create(
         messages=messages,
         **model_args
     ).choices[0].message.content
 
-def run_command(cmd: dict, text: str, **opt_args):
+def run_command(cmd: Dict, text: str, **opt_args):
     # load model and messages from command
     model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', {})}
     messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
