@@ -25,7 +25,7 @@
     q [command] TEXT [options]
     ```
 
-- `q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers). Check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't.
+- `q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers), check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't.
 
 ## Commands
 
@@ -37,11 +37,6 @@
     ```
 
 - Generate Python code using the `-p` or `--python` command:
-
-    <!-- ```
-    $ q -p fib function as a lambda
-    fib = lambda n, a=0, b=1: a if n == 0 else fib(n-1, b, a+b)
-    ``` -->
 
     ```
     $ q -p take user input and copy to clipboard
@@ -69,13 +64,6 @@
     $ q -r watchin haters wonder why gambino got the game locked
     Watching critics wonder why Gambino dominates the game.
     ```
-
-<!-- - Write a professional workplace message using the `-w` or `--workplace` command:
-
-    ```
-    $ q -w tell my manager he sucks at his job
-    I have some concerns about certain aspects of our workflow and would appreciate discussing ways we can improve our processes. Could we schedule a time to talk about this?
-    ``` -->
 
 - Prompt a regular language model using the `-c` or `--chat` command:
 

@@ -73,22 +73,8 @@ COMMANDS = [
         ]
     },
     {
-        'flags': ['-b', '--bash'],
-        'description': 'generate a Bash command from a description',
-        'messages': [
-            { 
-                'role': 'system', 
-                'content': 'You are a command-line assistant. Given a natural language task description, respond with a single shell command that accomplishes the task. Respond with only the command, without explanations, additional text, or formatting. Assume a Bash environment. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9).'
-            },
-            {
-                'role': 'user',
-                'content': 'Generate a single Bash command to accomplish the following task: {text}. Respond with only the command, without explanation or additional text.'
-            }
-        ]
-    },
-    {
-        'flags': ['-p', '--python'],
-        'description': 'generate a Python script from a description',
+        'flags': ['-c', '--code'],
+        'description': 'generate a code snippet (default Python unless specified)',
         'model_args': {
             'model': FULL_LLM,
             'max_tokens': 256
@@ -96,25 +82,39 @@ COMMANDS = [
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are a Python coding assistant. Given a natural language description, generate Python code that accomplishes the requested task. Ensure the code is correct, efficient, and follows best practices. Respond only with the code, without explanations, additional text, or formatting. If multiple implementations are possible, choose the most idiomatic and concise approach.'
+                'content': 'You are a coding assistant. Given a natural language description, generate a code snippet that accomplishes the requested task. The code should be correct, efficient, concise, and idiomatic. Respond with only the code snippet, without explanations, additional text, or formatting. Assume the programming language is Python unless otherwise specified.'
             },
             {
                 'role': 'user',
-                'content': 'Write a Python script to accomplish the following task: {text}. Respond only with the code, without explanation or additional text.'
+                'content': 'Generate a code snippet to accomplish the following task: {text}. Respond only with the code, without explanation or additional text.'
+            }
+        ]
+    },
+    {
+        'flags': ['-s', '--shell'],
+        'description': 'generate a shell command (default Linux Bash unless specified)',
+        'messages': [
+            { 
+                'role': 'system', 
+                'content': 'You are a command-line assistant. Given a natural language task description, generate a single shell command that accomplishes the task. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a Linux Bash shell unless otherwise specified.'
+            },
+            {
+                'role': 'user',
+                'content': 'Generate a single shell command to accomplish the following task: {text}. Respond with only the command, without explanation or additional text.'
             }
         ]
     },
     {
         'flags': ['-x', '--regex'],
-        'description': 'generate a Python regex pattern from a description',
+        'description': 'generate a regex pattern (default Python re unless specified)',
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are a Python regular expression generator. Given a natural language description of the desired text pattern, respond with only a valid Python regex pattern. Do not include explanations, code examples, or additional text -- only the raw regex string. Ensure correctness and efficiency.'
+                'content': 'You are a regular expression generator. Given a natural language description of the desired text pattern, generate a regex pattern to match it. The regex should be correct, efficient, and concise. Respond with only the raw regex string, without explanations, additional text, or formatting. Use the Python re module syntax unless otherwise specified.'
             },
             {
                 'role': 'user',
-                'content': 'Generate a Python regular expression that matches {text}. Respond with only the regex pattern, without explanation or additional text.'
+                'content': 'Generate a regex to match the following: {text}. Respond with only the regex pattern, without explanation or additional text.'
             }
         ]
     },
@@ -128,34 +128,17 @@ COMMANDS = [
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are an advanced language model specialized in rephrasing text for clarity, fluency, and conciseness. Your goal is to improve readability and coherence while preserving the original meaning. Ensure the output is grammatically correct, natural, and precise. Eliminate redundancy by removing unnecessary words and simplifying overly complex structures without losing essential details. Maintain technical accuracy for specialized content and adapt the phrasing to suit the audience if specified. Avoid altering factual content, tone, or intent unless explicitly requested.',
+                'content': 'You are writing assistant. Given a text passage, rephrase it to enhance clarity, fluency, and conciseness. Ensure the output is gramatically correct, coherent, and precise. Remove redundant phrases without losing essential details. Do not modify the factual content, level of detail, or tone unless requested.',
             },
             {
                 'role': 'user',
-                'content': 'Rephrase the following text to improve clarity, fluency, and conciseness: {text}'
+                'content': 'Rephrase the following text: {text}'
             }
         ]
     },
     {
-        'flags': ['-w', '--workplace'],
-        'description': 'write a professional workplace message',
-        'model_args': {
-            'model': FULL_LLM
-        },
-        'messages': [
-            { 
-                'role': 'system', 
-                'content': 'You are an assistant that writes workplace chat messages in a professional tone for communication with managers and coworkers. Your goal is to transform input messages into clear, workplace-appropriate language without altering intent, adding personal judgments, or providing unsolicited advice. Maintain a neutral or positive tone as appropriate. Do not use formal or flowery language, and avoid greetings and unnecessary pleasantries unless requested.'
-            },
-            {
-                'role': 'user',
-                'content': 'Write a clear and professional chat message for the following task: {text}'
-            }
-        ]
-    },
-    {
-        'flags': ['-c', '--chat'],
-        'description': 'chat with a full language model',
+        'flags': ['-p', '--prompt'],
+        'description': 'prompt a regular language model',
         'model_args': {
             'model': FULL_LLM,
             'max_tokens': 256,
