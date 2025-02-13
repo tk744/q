@@ -250,8 +250,29 @@ def run_command(cmd: Dict, text: str, **opt_args):
             pyperclip.copy(response)
         except pyperclip.PyperclipException:
             pass # ignore clipboard errors
+        
+def validate_commands():
+    # check if there is a default command
+    if len([cmd for cmd in COMMANDS if not cmd['flags']]) == 0:
+        print(colored(f'Error: No default command found.', 'red'))
+        exit(1)
+
+    # check if there is more than one default command
+    if len([cmd for cmd in COMMANDS if not cmd['flags']]) > 1:
+        print(colored(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red'))
+        exit(1)
+
+    # check if there are duplicate commands
+    cmd_flags = [flag for cmd in COMMANDS for flag in cmd['flags']]
+    dup_flags = set(flag for flag in cmd_flags if cmd_flags.count(flag) > 1)
+    if dup_flags:
+        print(colored(f'Error: Duplicate commands found: {", ".join(dup_flags)}.', 'red'))
+        exit(1)
 
 def main(args):
+    # validate custom commands
+    validate_commands()
+
     # help text
     tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in COMMANDS + OPTIONS) + 2
     help_text = 'q is an LLM-powered programming copilot from the comfort of your command line.'
@@ -316,17 +337,9 @@ def main(args):
             exit(0)
     # run default command
     else:
-        default_cmds = [cmd for cmd in COMMANDS if not cmd['flags']]
-        if len(default_cmds) == 0:
-            print(colored(f'Error: No default command found.', 'red'))
-            exit(1)
-        elif len(default_cmds) > 1:
-            print(colored(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red'))
-            exit(1)
-        else:
-            cmd = default_cmds[0]
-            run_command(cmd, ' '.join(args[1:]), **opt_args)
-            exit(0)
+        # already validated there is exactly one default command
+        cmd = [cmd for cmd in COMMANDS if not cmd['flags']][0]
+        run_command(cmd, ' '.join(args[1:]), **opt_args)
 
 if __name__ == '__main__':
     main(sys.argv)
