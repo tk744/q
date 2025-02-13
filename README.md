@@ -29,26 +29,21 @@
 
 ## Commands
 
-- Generate Bash commands using the `-b` or `--bash` command:
+- Generate code using the `-c` or `--code` command (assumes Python unless specified):
 
     ```
-    $ q -b add the file run.py to the previous commit
-    git add run.py && git commit --amend --no-edit
-    ```
-
-- Generate Python code using the `-p` or `--python` command:
-
-    ```
-    $ q -p take user input and copy to clipboard
+    $ q -c copy user input to clipboard
     import pyperclip
 
-    def main():
-        user_input = input("Enter text to copy to clipboard: ")
-        pyperclip.copy(user_input)
-        print("Text copied to clipboard.")
+    user_input = input("Enter text to copy to clipboard: ")
+    pyperclip.copy(user_input)
+    ```
 
-    if __name__ == "__main__":
-        main()
+- Generate shell commands using the `-s` or `--shell` command (assumes Linux Bash unless specified):
+
+    ```
+    $ q -s add run.py to prev commit
+    git add run.py && git commit --amend --no-edit
     ```
 
 - Generate regex patterns using the `-x` or `--regex` command:
@@ -65,10 +60,10 @@
     Watching critics wonder why Gambino dominates the game.
     ```
 
-- Prompt a regular language model using the `-c` or `--chat` command:
+- Prompt a regular language model using the `-p` or `--prompt` command:
 
     ```
-    $ q -c give me a punchline without the setup
+    $ q -p give me a punchline without the setup
     "…and that's why you never trust a penguin with your ice cream!"
     ```
 
@@ -76,10 +71,10 @@
 
 `q` allows you to build on previous responses by prompting it without an explicit command. This enables many useful follow-up interactions.
 
-- Iterative refinement:
+- Interactive debugging:
 
     ```
-    $ q -b get cuda version
+    $ q -s get cuda version
     nvcc --version
     $ nvcc --version
     bash: nvcc: command not found
@@ -93,13 +88,13 @@
     | NVIDIA-SMI 560.35.02    Driver Version: 560.94    CUDA Version: 12.6 |
     ```
 
-- Asking for explanations and clarifications:
+- Asking for explanations:
 
     ```
-    $ ./q -p function to merge two dictionaries x and y
+    $ q -c function to merge two dictionaries x and y
     def merge_dictionaries(x, y):
         return {**x, **y}
-    $ ./q what does '**' do
+    $ q what does '**' do
     In Python, the `**` operator is used to unpack dictionaries. When used in the context of merging dictionaries, `**` allows you to unpack the key-value pairs of a dictionary into another dictionary. This ...
     ```
 
