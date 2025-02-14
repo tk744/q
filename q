@@ -41,10 +41,15 @@ def _load_model_args() -> Dict:
             return json.load(f)
     except FileNotFoundError:
         return {}
+    
+# command and option parameters
+DEFAULT_CODE = 'Python'      # default language for code generation
+DEFAULT_SHELL = 'Linux Bash' # default system for shell command generation
+LONG_MAX_TOKENS = 1024       # max tokens for long responses option
 
 # model variants
-MINI_LLM = 'gpt-4o-mini' # faster and cheaper
-FULL_LLM = 'gpt-4o'      # more powerful and expensive
+MINI_LLM = 'gpt-4o-mini' # cheap and fast
+FULL_LLM = 'gpt-4o'      # expensive and more powerful
 
 # default model parameters
 DEFAULT_MODEL_ARGS = {
@@ -56,9 +61,6 @@ DEFAULT_MODEL_ARGS = {
     'top_p': 1,
     'stop': None
 }
-
-# option parameters
-LONG_MAX_TOKENS = 1024 # max tokens for long responses
 
 COMMANDS = [
     {
@@ -74,7 +76,7 @@ COMMANDS = [
     },
     {
         'flags': ['-c', '--code'],
-        'description': 'generate a code snippet (default Python unless specified)',
+        'description': f'generate a code snippet (default {DEFAULT_CODE} unless specified)',
         'model_args': {
             'model': FULL_LLM,
             'max_tokens': 256
@@ -82,7 +84,7 @@ COMMANDS = [
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are a coding assistant. Given a natural language description, generate a code snippet that accomplishes the requested task. The code should be correct, efficient, concise, and idiomatic. Respond with only the code snippet, without explanations, additional text, or formatting. Assume the programming language is Python unless otherwise specified.'
+                'content': f'You are a coding assistant. Given a natural language description, generate a code snippet that accomplishes the requested task. The code should be correct, efficient, concise, and idiomatic. Respond with only the code snippet, without explanations, additional text, or formatting. Assume the programming language is {DEFAULT_CODE} unless otherwise specified.'
             },
             {
                 'role': 'user',
@@ -92,11 +94,11 @@ COMMANDS = [
     },
     {
         'flags': ['-s', '--shell'],
-        'description': 'generate a shell command (default Linux Bash unless specified)',
+        'description': f'generate a shell command (default {DEFAULT_SHELL} system unless specified)',
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are a command-line assistant. Given a natural language task description, generate a single shell command that accomplishes the task. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a Linux Bash shell unless otherwise specified.'
+                'content': f'You are a command-line assistant. Given a natural language task description, generate a single shell command that accomplishes the task. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a {DEFAULT_SHELL} shell unless otherwise specified.'
             },
             {
                 'role': 'user',
@@ -106,11 +108,11 @@ COMMANDS = [
     },
     {
         'flags': ['-x', '--regex'],
-        'description': 'generate a regex pattern (default Python re unless specified)',
+        'description': 'generate a regex pattern',
         'messages': [
             { 
                 'role': 'system', 
-                'content': 'You are a regular expression generator. Given a natural language description of the desired text pattern, generate a regex pattern to match it. The regex should be correct, efficient, and concise. Respond with only the raw regex string, without explanations, additional text, or formatting. Use the Python re module syntax unless otherwise specified.'
+                'content': 'You are a regular expression generator. Given a natural language description of the desired text pattern, generate a regex pattern to match it. The regex should be correct, efficient, and concise. Respond with only the raw regex string, without explanations, additional text, or formatting.'
             },
             {
                 'role': 'user',
