@@ -5,7 +5,7 @@ import getpass
 import json
 import os
 import sys
-from typing import List, Dict
+from typing import List, Dict, Any
 
 # third-party imports
 import openai
@@ -13,34 +13,26 @@ import pyperclip
 from openai import OpenAI
 from termcolor import colored
 
-# resource paths
-RESOURCE_DIR = os.path.expanduser('~/.q')
-OPENAI_KEY_FILE = os.path.join(RESOURCE_DIR, 'openai.key')  # api key
-PREV_MESSAGES = os.path.join(RESOURCE_DIR, 'messages.json') # previous messages
-PREV_MODEL = os.path.join(RESOURCE_DIR, 'model_args.json')  # previous model parameters
-os.makedirs(RESOURCE_DIR, exist_ok=True)
+# program resources
+RESOURCE_PATH = os.path.join(os.path.expanduser('~'), '.q', 'resources.json')
+os.makedirs(os.path.dirname(RESOURCE_PATH), exist_ok=True)
 
-def _save_messages(messages: List[Dict]):
-    with open(PREV_MESSAGES, 'w') as f:
-        json.dump(messages, f, indent=4)
-
-def _load_messages() -> List[Dict]:
+def _load_resource(name: str, default: Any) -> Any:
     try:
-        with open(PREV_MESSAGES) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
+        with open(RESOURCE_PATH) as f:
+            return json.load(f)[name]
+    except:
+        return default
     
-def _save_model_args(model_args: Dict):
-    with open(PREV_MODEL, 'w') as f:
-        json.dump(model_args, f, indent=4)
-
-def _load_model_args() -> Dict:
+def _save_resource(name: str, value: Any):
     try:
-        with open(PREV_MODEL) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+        with open(RESOURCE_PATH) as f:
+            resources = json.load(f)
+    except:
+        resources = {}
+    resources[name] = value
+    with open(RESOURCE_PATH, 'w') as f:
+        json.dump(resources, f, indent=4)
     
 # command and option parameters
 DEFAULT_CODE = 'Python'      # default language for code generation
@@ -66,8 +58,8 @@ COMMANDS = [
     {
         'flags': [],
         'description': 'follow-up on the previous response',
-        'model_args': _load_model_args(),
-        'messages': _load_messages() + [
+        'model_args': _load_resource('model_args', {}),
+        'messages': _load_resource('messages', []) + [
             {
                 'role': 'user',
                 'content': '{text}'
@@ -183,20 +175,23 @@ OPTIONS = [
 ]
     
 def get_client() -> OpenAI:
+    api_key =_load_resource('openai_key', None)
+    
+    if api_key is None:
+        print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
+        api_key = getpass.getpass(prompt='')
+        _save_resource('openai_key', api_key)
+
     while True:
         try:
-            with open(OPENAI_KEY_FILE) as f:
-                client = OpenAI(api_key=f.read())
-                client.models.list() # test the API key
-                return client
-        except FileNotFoundError:
-            print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
-            with open(OPENAI_KEY_FILE, 'w') as f:
-                f.write(getpass.getpass(prompt=''))
+            client = OpenAI(api_key=api_key)
+            client.models.list() # test the API key
+            return client
+        
         except (openai.AuthenticationError, openai.APIConnectionError):
             print(colored(f'Error: OpenAI API key not valid. Please paste your API key: ', 'red'), end='', flush=True)
-            with open(OPENAI_KEY_FILE, 'w') as f:
-                f.write(getpass.getpass(prompt=''))
+            api_key = getpass.getpass(prompt='')
+            _save_resource('openai_key', api_key)
 
 def prompt_model(model: str, model_args: Dict, messages: List[Dict]) -> str:
     return get_client().chat.completions.create(
@@ -210,7 +205,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
     messages = [ { role : content.replace('{text}', text) for role, content in msg.items() } for msg in cmd.get('messages', []) ]
 
     # save model args for follow-up commands
-    _save_model_args(model_args)
+    _save_resource('model_args', model_args)
 
     # overwrite previous follow-up command
     if opt_args.get('overwrite', False):
@@ -237,7 +232,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
 
     # save messages for follow-up commands
     messages.append({'role': 'assistant', 'content': response})
-    _save_messages(messages)
+    _save_resource('messages', messages)
 
     # print output
     if opt_args.get('verbose', False):
