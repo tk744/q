@@ -205,7 +205,7 @@ def prompt_model(model: str, model_args: Dict, messages: List[Dict]) -> str:
 def run_command(cmd: Dict, text: str, **opt_args):
     # load model and messages from command
     model_args = {**DEFAULT_MODEL_ARGS, **cmd.get('model_args', {})}
-    messages = json.loads(json.dumps(cmd.get('messages', [])).replace('{text}', text))
+    messages = [ { role : content.replace('{text}', text) for role, content in msg.items() } for msg in cmd.get('messages', []) ]
 
     # save model args for follow-up commands
     _save_model_args(model_args)
