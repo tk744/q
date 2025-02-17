@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 # third-party imports
 import openai
 import pyperclip
-from openai import OpenAI
+from colorama import just_fix_windows_console
 from termcolor import colored
 
 # program resources
@@ -174,7 +174,7 @@ OPTIONS = [
     },
 ]
     
-def get_client() -> OpenAI:
+def get_client() -> openai.OpenAI:
     api_key =_load_resource('openai_key', None)
     
     if api_key is None:
@@ -184,7 +184,7 @@ def get_client() -> OpenAI:
 
     while True:
         try:
-            client = OpenAI(api_key=api_key)
+            client = openai.OpenAI(api_key=api_key)
             client.models.list() # test the API key
             return client
         
@@ -271,6 +271,9 @@ def validate_commands():
         exit(1)
 
 def main(args):
+    # fix ANSI escape codes on Windows
+    just_fix_windows_console()
+
     # validate custom commands
     validate_commands()
 

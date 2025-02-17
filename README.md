@@ -6,7 +6,7 @@
 Requires Python 3.8+ and the following dependencies:
 
 ```
-pip install openai pyperclip termcolor
+pip install colorama openai pyperclip termcolor
 ```
 
 Download the script to a directory in your path (e.g. `~/.local/bin/`) and make it executable:
