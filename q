@@ -5,7 +5,7 @@ import getpass
 import json
 import os
 import sys
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # third-party imports
 import openai
@@ -33,11 +33,6 @@ def _save_resource(name: str, value: Any):
     resources[name] = value
     with open(RESOURCE_PATH, 'w') as f:
         json.dump(resources, f, indent=4)
-    
-# command and option parameters
-DEFAULT_CODE = 'Python'      # default language for code generation
-DEFAULT_SHELL = 'Linux Bash' # default system for shell command generation
-LONG_MAX_TOKENS = 1024       # max tokens for long responses option
 
 # model variants
 MINI_LLM = 'gpt-4o-mini' # cheap and fast
@@ -53,6 +48,11 @@ DEFAULT_MODEL_ARGS = {
     'top_p': 1,
     'stop': None
 }
+
+# command and option parameters
+DEFAULT_CODE = 'Python'      # default language for code generation
+DEFAULT_SHELL = 'Linux Bash' # default system for shell command generation
+LONG_TOKEN_LIMIT = 1024      # max tokens for long response generation
 
 COMMANDS = [
     {
@@ -219,7 +219,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
 
     # set max tokens for long responses
     if opt_args.get('longer', False):
-        model_args['max_tokens'] = LONG_MAX_TOKENS
+        model_args['max_tokens'] = LONG_TOKEN_LIMIT
 
     # prompt the model
     response = prompt_model(model_args, messages)

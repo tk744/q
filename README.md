@@ -21,7 +21,7 @@ The first time `q` is prompted, you will be asked for an OpenAI API key which yo
 
 The basic syntax is `q [command] TEXT [options]`. `q` accepts at most one command and any number of options. Any arguments between the command and options is treated as the input text.
 
-`q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers), check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't work.
+`q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers); check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't work.
 
 For a full list of commands and options, run `q -h`.
 
@@ -41,7 +41,7 @@ user_input = input("Enter text to copy to clipboard: ")
 pyperclip.copy(user_input)
 ```
 
-By default this generates Python code, but you can specify a different programming language in the prompt itself:
+By default this generates Python code, but you can specify a different programming language in the prompt itself (or [modify the default value](#modifying-default-values)):
 
 ```
 $ q -c copy user input to clipboard in rust
@@ -76,7 +76,7 @@ $ q -s add README.md to prev commit and push changes
 git add README.md && git commit --amend --no-edit && git push --force
 ```
 
-By default this generates Bash commands for a Linux system, but you can specify a different shell or OS in the prompt itself:
+By default this generates Bash commands for a Linux system, but you can specify a different shell or OS in the prompt itself (or [modify the default value](#modifying-default-values)):
 
 ```
 $ q -s auto hide the dock on macos
@@ -189,9 +189,23 @@ User: orange
 Assistant: Orange who?
 ```
 
-# Adding Custom Commands
+# Customization
 
-`q` was designed to be easily extensible. To add a custom command in the script, simply add a new dictionary entry to the `COMMANDS` list with the following keys:
+`q` was designed to be easily customizable to suit any programmer's needs.
+
+## Modifying Default Values
+
+The following constants can be modified in the script to change the default behavior of `q`:
+- `MINI_LLM`: the default model for fast and cheap responses.
+- `FULL_LLM`: the default model for long and detailed responses.
+- `DEFAULT_MODEL_ARGS`: the default model arguments used by all commands if not overrided.
+- `DEFAULT_CODE`: the default language for code generation used by the `-c` command.
+- `DEFAULT_SHELL`: the default system for shell command generation used by the `-s` command.
+- `LONG_TOKEN_LIMIT`: the max token length for long responses used by the `-l` option.
+
+## Adding New Commands
+
+Add a new command to `q` by inserting a new dictionary in the `COMMANDS` list with the following keys:
 - `flags` *(required)*: a list of flags to invoke the command.
 - `description` *(required)*: a brief description of the command.
 - `messages` *(required)*: the instructions sent to the LLM, using `{text}` as a placeholder for the input text.
