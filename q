@@ -188,12 +188,12 @@ def get_client() -> openai.OpenAI:
             client.models.list() # test the API key
             return client
         
-        except (openai.AuthenticationError, openai.APIConnectionError):
+        except openai.APIError:
             print(colored(f'Error: OpenAI API key not valid. Please paste your API key: ', 'red'), end='', flush=True)
             api_key = getpass.getpass(prompt='')
             _save_resource('openai_key', api_key)
 
-def prompt_model(model: str, model_args: Dict, messages: List[Dict]) -> str:
+def prompt_model(model_args: Dict, messages: List[Dict]) -> str:
     return get_client().chat.completions.create(
         messages=messages,
         **model_args
@@ -222,7 +222,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
         model_args['max_tokens'] = LONG_MAX_TOKENS
 
     # prompt the model
-    response = prompt_model(model_args['model'], model_args, messages)
+    response = prompt_model(model_args, messages)
 
     # remove markdown formatting from code responses
     if response.startswith('```'):
