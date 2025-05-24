@@ -31,12 +31,10 @@ LONG_TOKEN_LIMIT = 2048      # token limit for long response generation
 # model parameters
 DEFAULT_MODEL_ARGS = {
     'model': MINI_LLM,
-    'max_tokens': TOKEN_LIMIT,
+    'max_output_tokens': TOKEN_LIMIT,
     'temperature': 0.0,
-    'frequency_penalty': 0,
-    'presence_penalty': 0,
     'top_p': 1,
-    'stop': None
+    'store': False
 }
 
 # program resources
@@ -80,7 +78,7 @@ COMMANDS = [
         },
         'messages': [
             { 
-                'role': 'system', 
+                'role': 'developer', 
                 'content': f'You are a coding assistant. Given a natural language description, generate a code snippet that accomplishes the requested task. The code should be correct, efficient, concise, and idiomatic. Respond with only the code snippet, without explanations, additional text, or formatting. Assume the programming language is {DEFAULT_CODE} unless otherwise specified.'
             },
             {
@@ -94,7 +92,7 @@ COMMANDS = [
         'description': f'generate a shell command (default {DEFAULT_SHELL} system unless specified)',
         'messages': [
             { 
-                'role': 'system', 
+                'role': 'developer', 
                 'content': f'You are a command-line assistant. Given a natural language task description, generate the simplest single shell command that accomplishes the task. Favor minimal, commonly available commands with no extra formatting or piping. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a {DEFAULT_SHELL} shell unless otherwise specified.'
             },
             {
@@ -108,7 +106,7 @@ COMMANDS = [
         'description': 'generate a regex pattern',
         'messages': [
             { 
-                'role': 'system', 
+                'role': 'developer', 
                 'content': 'You are a regular expression generator. Given a natural language description of the desired text pattern, generate a regex pattern to match it. The regex should be correct, efficient, and concise. Respond with only the raw regex string, without explanations, additional text, or formatting.'
             },
             {
@@ -125,7 +123,7 @@ COMMANDS = [
         },
         'messages': [
             { 
-                'role': 'system', 
+                'role': 'developer', 
                 'content': 'You are writing assistant. Given a text passage, rephrase it to enhance clarity, fluency, and conciseness. Ensure the output is gramatically correct, coherent, and precise. Remove redundant phrases without losing essential details. Do not modify the factual content, level of detail, or tone unless requested.',
             },
             {
@@ -143,7 +141,7 @@ COMMANDS = [
         },
         'messages': [
             { 
-                'role': 'system', 
+                'role': 'developer', 
                 'content': 'You are a helpful and knowledgeable AI assistant.'
             },
             {
@@ -197,10 +195,10 @@ def get_client() -> openai.OpenAI:
             _save_resource('openai_key', api_key)
 
 def prompt_model(model_args: Dict, messages: List[Dict]) -> str:
-    return get_client().chat.completions.create(
-        messages=messages,
+    return get_client().responses.create(
+        input=messages,
         **model_args
-    ).choices[0].message.content
+    ).output_text
 
 def run_command(cmd: Dict, text: str, **opt_args):
     # load model and messages from command
@@ -222,7 +220,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
 
     # set max tokens for long responses
     if opt_args.get('longer', False):
-        model_args['max_tokens'] = LONG_TOKEN_LIMIT
+        model_args['max_output_tokens'] = LONG_TOKEN_LIMIT
 
     # prompt the model
     response = prompt_model(model_args, messages)
