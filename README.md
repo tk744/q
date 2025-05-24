@@ -12,7 +12,7 @@ pip install colorama openai pyperclip termcolor
 Download the script to a directory in your path (e.g. `~/.local/bin/`) and make it executable:
 
 ```
-wget -qO ~/.local/bin/q https://raw.githubusercontent.com/tk744/q/refs/heads/master/q && chmod +x ~/.local/bin/q
+wget -qO ~/.local/bin/q https://raw.githubusercontent.com/tk744/q/refs/heads/main/q && chmod +x ~/.local/bin/q
 ```
 
 The first time `q` is prompted, you will be asked for an OpenAI API key which you can create [here](https://platform.openai.com/api-keys).

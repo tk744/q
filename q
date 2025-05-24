@@ -13,6 +13,32 @@ import pyperclip
 from colorama import just_fix_windows_console
 from termcolor import colored
 
+# versioning
+VERSION = 'v1.0.1'
+
+# command parameters
+DEFAULT_CODE = 'Python'      # default language for code generation
+DEFAULT_SHELL = 'Linux Bash' # default system for shell command generation
+
+# model variants
+MINI_LLM = 'gpt-4.1-mini'    # cheap and fast
+FULL_LLM = 'gpt-4.1'         # expensive and more powerful
+
+# model token limits
+TOKEN_LIMIT = 512            # default token limit
+LONG_TOKEN_LIMIT = 2048      # token limit for long response generation
+
+# model parameters
+DEFAULT_MODEL_ARGS = {
+    'model': MINI_LLM,
+    'max_tokens': TOKEN_LIMIT,
+    'temperature': 0.0,
+    'frequency_penalty': 0,
+    'presence_penalty': 0,
+    'top_p': 1,
+    'stop': None
+}
+
 # program resources
 RESOURCE_PATH = os.path.join(os.path.expanduser('~'), '.q', 'resources.json')
 os.makedirs(os.path.dirname(RESOURCE_PATH), exist_ok=True)
@@ -34,26 +60,6 @@ def _save_resource(name: str, value: Any):
     with open(RESOURCE_PATH, 'w') as f:
         json.dump(resources, f, indent=4)
 
-# model variants
-MINI_LLM = 'gpt-4o-mini' # cheap and fast
-FULL_LLM = 'gpt-4o'      # expensive and more powerful
-
-# default model parameters
-DEFAULT_MODEL_ARGS = {
-    'model': MINI_LLM,
-    'max_tokens': 128,
-    'temperature': 0.0,
-    'frequency_penalty': 0,
-    'presence_penalty': 0,
-    'top_p': 1,
-    'stop': None
-}
-
-# command and option parameters
-DEFAULT_CODE = 'Python'      # default language for code generation
-DEFAULT_SHELL = 'Linux Bash' # default system for shell command generation
-LONG_TOKEN_LIMIT = 1024      # max tokens for long response generation
-
 COMMANDS = [
     {
         'flags': [],
@@ -71,7 +77,6 @@ COMMANDS = [
         'description': f'generate a code snippet (default {DEFAULT_CODE} unless specified)',
         'model_args': {
             'model': FULL_LLM,
-            'max_tokens': 256
         },
         'messages': [
             { 
@@ -90,7 +95,7 @@ COMMANDS = [
         'messages': [
             { 
                 'role': 'system', 
-                'content': f'You are a command-line assistant. Given a natural language task description, generate a single shell command that accomplishes the task. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a {DEFAULT_SHELL} shell unless otherwise specified.'
+                'content': f'You are a command-line assistant. Given a natural language task description, generate the simplest single shell command that accomplishes the task. Favor minimal, commonly available commands with no extra formatting or piping. Avoid commands that could delete, overwrite, or modify important files or system settings (e.g., rm -rf, dd, mkfs, chmod -R, chown, kill -9). Respond with only the command, without explanations, additional text, or formatting. Assume a {DEFAULT_SHELL} shell unless otherwise specified.'
             },
             {
                 'role': 'user',
@@ -117,7 +122,6 @@ COMMANDS = [
         'description': 'rephrase text for enhanced fluency',
         'model_args' : {
             'model': FULL_LLM,
-            'max_tokens': 256
         },
         'messages': [
             { 
@@ -135,7 +139,6 @@ COMMANDS = [
         'description': 'prompt a regular language model',
         'model_args': {
             'model': FULL_LLM,
-            'max_tokens': 256,
             'temperature': 0.25,
         },
         'messages': [
@@ -279,7 +282,7 @@ def main(args):
 
     # help text
     tab_spaces, flag_len = 4, max(len(', '.join(cmd['flags'])) for cmd in COMMANDS + OPTIONS) + 2
-    help_text = 'q is an LLM-powered programming copilot from the comfort of your command line.'
+    help_text = f'q {VERSION} - an LLM-powered programming copilot from the comfort of your command line.'
     help_text += '\n\nUsage: ' + colored(f'{os.path.basename(args[0])} [command] TEXT [options]', 'green')
     help_text += '\n\nCommands (one required):\n'
     help_text += '\n'.join([' '*tab_spaces + colored(f'{", ".join(cmd["flags"]) if cmd["flags"] else "TEXT":<{flag_len}}', 'green') + f'{cmd["description"]}' for cmd in COMMANDS])
