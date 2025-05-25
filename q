@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 
 # standard library imports
+import base64
 import getpass
 import json
 import os
 import re
+import string
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 # third-party imports
 import openai
 import pyperclip
 from colorama import just_fix_windows_console
-from termcolor import colored
+from termcolor import colored, cprint
 
 # versioning
-VERSION = 'v1.1.0'
+VERSION = 'v1.2.0'
 
 # command parameters
 DEFAULT_CODE = 'Python'      # default language for code generation
@@ -32,7 +34,6 @@ LONG_TOKEN_LIMIT = 2048      # token limit for long response generation
 # model parameters
 DEFAULT_MODEL_ARGS = {
     'model': MINI_LLM,
-    'store': False,
     'max_output_tokens': TOKEN_LIMIT,
     'temperature': 0.0
 }
@@ -134,6 +135,24 @@ COMMANDS = [
         ]
     },
     {
+        'flags': ['-i', '--image'],
+        'description': 'generate an image (note: very expensive)',
+        'model_args': {
+            'model': MINI_LLM,
+            'tools': [{
+                'type': 'image_generation',
+                'size': '1024x1024',
+                'quality': 'auto' # low, medium, high
+            }],
+        },
+        'messages': [
+            {
+                'role': 'user',
+                'content': 'Generate an image of the following: {text}.'
+            }
+        ]
+    },
+    {
         'flags': ['-r', '--rephrase'],
         'description': 'rephrase text for enhanced fluency',
         'model_args' : {
@@ -170,7 +189,7 @@ COMMANDS = [
                 'content': 'Fetch the following information: {text}.'
             }
         ]
-    },
+    }
 ]
 
 OPTIONS = [
@@ -200,7 +219,7 @@ def get_client() -> openai.OpenAI:
     api_key =_load_resource('openai_key', None)
     
     if api_key is None:
-        print(colored(f'Error: OpenAI API key not found. Please paste your API key: ', 'red'), end='', flush=True)
+        cprint(f'Error: OpenAI API key not found. Please paste your API key: ', 'red', end='', flush=True)
         api_key = getpass.getpass(prompt='')
         _save_resource('openai_key', api_key)
 
@@ -211,15 +230,33 @@ def get_client() -> openai.OpenAI:
             return client
         
         except openai.APIError:
-            print(colored(f'Error: OpenAI API key not valid. Please paste your API key: ', 'red'), end='', flush=True)
+            cprint(f'Error: OpenAI API key not valid. Please paste your API key: ', 'red', end='', flush=True)
             api_key = getpass.getpass(prompt='')
             _save_resource('openai_key', api_key)
 
-def prompt_model(model_args: Dict, messages: List[Dict]) -> str:
-    return get_client().responses.create(
+def prompt_model(model_args: Dict, messages: List[Dict]) -> Tuple[str, str]:
+    response = get_client().responses.create(
         input=messages,
         **model_args
-    ).output_text
+    )
+
+    # extract text response
+    text_response = response.output_text
+
+    # remove markdown formatting from code responses
+    text_response = re.sub(r'^\s*```(?:\w*\n)?(.*?)```(?:\s*)$', r'\1', text_response, flags=re.DOTALL)
+
+    # shorten links from web search responses
+    text_response = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text_response).strip()
+
+    # extract image response
+    image_response = None
+    for output in response.output:
+        if output.type == 'image_generation_call':
+            image_response = output
+            break
+
+    return text_response, image_response
 
 def run_command(cmd: Dict, text: str, **opt_args):
     # load model and messages from command
@@ -232,11 +269,11 @@ def run_command(cmd: Dict, text: str, **opt_args):
     # overwrite previous follow-up command
     if opt_args.get('overwrite', False):
         # remove messages from second-to-last user message to last user message
-        user_msg_indices = [i for i, msg in enumerate(messages) if msg['role'] == 'user']
+        user_msg_indices = [i for i, msg in enumerate(messages) if msg.get('role') == 'user']
         if len(user_msg_indices) > 1:
             messages = messages[:user_msg_indices[-2]] + messages[user_msg_indices[-1]:]
         else:
-            print(colored(f'Error: No previous command to overwrite.', 'red'))
+            cprint(f'Error: No previous command to overwrite.', 'red')
             exit(1)
 
     # set max tokens for long responses
@@ -244,52 +281,62 @@ def run_command(cmd: Dict, text: str, **opt_args):
         model_args['max_output_tokens'] = LONG_TOKEN_LIMIT
 
     # prompt the model
-    response = prompt_model(model_args, messages)
-
-    # remove markdown formatting from code responses
-    response = re.sub(r'^\s*```(?:\w*\n)?(.*?)```(?:\s*)$', r'\1', response, flags=re.DOTALL)
-
-    # reduce links from web search responses
-    response = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', response).strip()
+    text_response, image_response = prompt_model(model_args, messages)
 
     # save messages for follow-up commands
-    messages.append({'role': 'assistant', 'content': response})
+    if image_response:
+        messages.append({'type': 'image_generation_call', 'id': image_response.id})
+    else:
+        messages.append({'role': 'assistant', 'content': text_response})
     _save_resource('messages', messages)
 
     # print output
     if opt_args.get('verbose', False):
-        print(colored('MODEL PARAMETERS:', 'red'))
+        # model parameters
+        cprint('MODEL PARAMETERS:', 'red')
         for arg in model_args:
             print(colored(f'{arg}:', 'green'), model_args[arg])
-        print('\n'+colored('MESSAGES:', 'red'))
+        # message history
+        cprint('\n'+'MESSAGES:', 'red')
         for message in messages:
-            print(colored(f'{message["role"].capitalize()}:', 'green'), message['content'])
-    else:
-        print(response)
+            if message.get('role'):
+                print(colored(f'{message["role"].capitalize()}:', 'green'), message['content'])
+            elif message.get('type'):
+                print(colored(f'{message["type"]}:', 'green'), message['id'])
+    elif not image_response:
+        print(text_response)
 
-    # copy response to clipboard
-    if not opt_args.get('no-clip', False):
+    # copy text response to clipboard
+    if not image_response and not opt_args.get('no-clip', False):
         try:
-            pyperclip.copy(response)
+            pyperclip.copy(text_response)
+            cprint(f'Output copied to clipboard.', 'yellow')
         except pyperclip.PyperclipException:
             pass # ignore clipboard errors
+
+    # save image to file
+    if image_response:
+        image_file = 'q_' + ''.join(c for c in text if c not in string.punctuation).replace(' ', '_') + '.png'
+        with open(image_file, 'wb') as f:
+            f.write(base64.b64decode(image_response.result))
+        cprint(f'Image saved to {image_file}.', 'yellow')
         
 def validate_commands():
     # check if there is a default command
     if len([cmd for cmd in COMMANDS if not cmd['flags']]) == 0:
-        print(colored(f'Error: No default command found.', 'red'))
+        cprint(f'Error: No default command found.', 'red')
         exit(1)
 
     # check if there is more than one default command
     if len([cmd for cmd in COMMANDS if not cmd['flags']]) > 1:
-        print(colored(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red'))
+        cprint(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red')
         exit(1)
 
     # check if there are duplicate commands
     cmd_flags = [flag for cmd in COMMANDS for flag in cmd['flags']]
     dup_flags = set(flag for flag in cmd_flags if cmd_flags.count(flag) > 1)
     if dup_flags:
-        print(colored(f'Error: Duplicate commands found: {", ".join(dup_flags)}.', 'red'))
+        cprint(f'Error: Duplicate commands found: {", ".join(dup_flags)}.', 'red')
         exit(1)
 
 def main(args):
@@ -316,22 +363,22 @@ def main(args):
     # check if there is more than one command
     cmd_flags = [flag for cmd in COMMANDS for flag in cmd['flags']]
     if len([arg for arg in args[1:] if arg in cmd_flags]) > 1:
-        print(colored(f'Error: Only one command may be provided.', 'red'))
+        cprint(f'Error: Only one command may be provided.', 'red')
         exit(1)
 
     # check if there is a command that is not the first argument
     if len([arg for arg in args[1:] if arg in cmd_flags]) == 1 and args[1] not in cmd_flags:
-        print(colored(f'Error: Command must be the first argument.', 'red'))
+        cprint(f'Error: Command must be the first argument.', 'red')
         exit(1)
 
     # check if the first argument is an invalid command
     if args[1].startswith('-') and args[1] not in cmd_flags:
-        print(colored(f'Error: Invalid command "{args[1]}".', 'red'))
+        cprint(f'Error: Invalid command "{args[1]}".', 'red')
         exit(1)
 
     # check if there is no text provided for a command
     if args[1] in cmd_flags and len(args) < 3:
-        print(colored(f'Error: No text provided.', 'red'))
+        cprint(f'Error: No text provided.', 'red')
         exit(1)
 
     # extract options and remove them from the text
@@ -353,7 +400,7 @@ def main(args):
                         opt_args[opt['name']] = True
                         break
                 else:
-                    print(colored(f'Error: Invalid option "-{flags}".', 'red'))
+                    cprint(f'Error: Invalid option "-{flags}".', 'red')
                     exit(1)
 
     # run command
