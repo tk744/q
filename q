@@ -4,6 +4,7 @@
 import getpass
 import json
 import os
+import re
 import sys
 from typing import Any, Dict, List
 
@@ -14,7 +15,7 @@ from colorama import just_fix_windows_console
 from termcolor import colored
 
 # versioning
-VERSION = 'v1.0.1'
+VERSION = 'v1.1.0'
 
 # command parameters
 DEFAULT_CODE = 'Python'      # default language for code generation
@@ -31,10 +32,9 @@ LONG_TOKEN_LIMIT = 2048      # token limit for long response generation
 # model parameters
 DEFAULT_MODEL_ARGS = {
     'model': MINI_LLM,
+    'store': False,
     'max_output_tokens': TOKEN_LIMIT,
-    'temperature': 0.0,
-    'top_p': 1,
-    'store': False
+    'temperature': 0.0
 }
 
 # program resources
@@ -64,6 +64,24 @@ COMMANDS = [
         'description': 'follow-up on the previous response',
         'model_args': _load_resource('model_args', {}),
         'messages': _load_resource('messages', []) + [
+            {
+                'role': 'user',
+                'content': '{text}'
+            }
+        ]
+    },
+    {
+        'flags': ['-p', '--prompt'],
+        'description': 'prompt a regular language model',
+        'model_args': {
+            'model': FULL_LLM,
+            'temperature': 0.25,
+        },
+        'messages': [
+            { 
+                'role': 'developer', 
+                'content': 'You are a helpful and knowledgeable AI assistant.'
+            },
             {
                 'role': 'user',
                 'content': '{text}'
@@ -133,23 +151,26 @@ COMMANDS = [
         ]
     },
     {
-        'flags': ['-p', '--prompt'],
-        'description': 'prompt a regular language model',
-        'model_args': {
-            'model': FULL_LLM,
-            'temperature': 0.25,
+        'flags': ['-w', '--web'],
+        'description': 'search the internet (note: more expensive)',
+        'model_args' : {
+            'model': MINI_LLM,
+            'tools': [{
+                'type': 'web_search_preview',
+                'search_context_size': 'low'
+            }],
         },
         'messages': [
             { 
                 'role': 'developer', 
-                'content': 'You are a helpful and knowledgeable AI assistant.'
+                'content': 'You fetch real-time data from the internet. Always respond with only the data requested. Do not provide additional information in the form of context, background, or links. The response should be less than a single sentence.'
             },
             {
                 'role': 'user',
-                'content': '{text}'
+                'content': 'Fetch the following information: {text}.'
             }
         ]
-    }
+    },
 ]
 
 OPTIONS = [
@@ -161,7 +182,7 @@ OPTIONS = [
     {
         'name': 'longer',
         'flags': ['-l', '--longer'],
-        'description': 'enable longer responses (note: may increase cost)',
+        'description': 'enable longer responses',
     },
     {
         'name': 'no-clip',
@@ -226,10 +247,10 @@ def run_command(cmd: Dict, text: str, **opt_args):
     response = prompt_model(model_args, messages)
 
     # remove markdown formatting from code responses
-    if response.startswith('```'):
-        response = response[response.find('\n')+1:]
-    if response.endswith('```'):
-        response = response[:response.rfind('\n')]
+    response = re.sub(r'^\s*```(?:\w*\n)?(.*?)```(?:\s*)$', r'\1', response, flags=re.DOTALL)
+
+    # reduce links from web search responses
+    response = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', response).strip()
 
     # save messages for follow-up commands
     messages.append({'role': 'assistant', 'content': response})
