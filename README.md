@@ -21,7 +21,7 @@ The first time `q` is prompted, you will be asked for an OpenAI API key which yo
 
 The basic syntax is `q [command] TEXT [options]`. `q` accepts at most one command and any number of options. Any arguments between the command and options is treated as the input text.
 
-`q` stores the output to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers); check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't work.
+`q` stores the output of generation commands to the clipboard so you can paste it wherever you need it. This only works on non-headless environments (no VMs and Docker containers); check [here](https://pyperclip.readthedocs.io/en/latest/index.html#not-implemented-error) if it doesn't work.
 
 For a full list of commands and options, run `q -h`.
 
@@ -101,7 +101,7 @@ $ q -x html tags
 
 ### Generate Images
 
-Use the `-i` or `--image` command to generate 1024x1024 images (note: this is very expensive!):
+Use the `-i` or `--image` command to generate 1024x1024 images (note: this is very expensive):
 
 ```
 $ q -i george washington riding a harley through the american civil war
@@ -172,7 +172,7 @@ $ q make it float in a high res bathtub
 Image saved to q_make_it_float_in_a_high_res_bathtub.png.
 ```
 
-Or ask questions about previous responses:
+Or ask questions about the previous response:
 
 ```
 $ q -c function to merge two dictionaries x and y
@@ -188,7 +188,7 @@ Options are boolean flags that modify the behavior of `q`:
 
 - Use the `-o` or `--overwrite` option to overwrite the previous command.
 - Use the `-l` or `--longer` option to increase the max token length of responses (*note: this may increase the cost of API calls*).
-- Use the `-n` or `--no-clip` option to disable storing responses to the clipboard.
+- Use the `-n` or `--no-clip` option to disable automatically storing responses to the clipboard.
 - Use the `-v` or `--verbose` option to print the model parameters and message history.
 
 You can combine multiple options using their abbreviated forms following a single hyphen:
@@ -234,8 +234,9 @@ The following constants can be modified in the script to change the default beha
 
 Add a new command to `q` by inserting a new dictionary in the `COMMANDS` list with the following keys:
 - `flags` *(required)*: a list of flags to invoke the command.
-- `description` *(required)*: a brief description of the command.
+- `description` *(required)*: a brief description of the command shown in the help message.
 - `messages` *(required)*: the instructions sent to the LLM, using `{text}` as a placeholder for the input text.
-- `model_args` *(optional)*: override default model arguments set in `DEFAULT_MODEL_ARGS`.
+- `model_args` *(optional)*: override default model arguments set in `DEFAULT_MODEL_ARGS` or set new arguments.
+- `clip_output` *(optional)*: set to `True` to copy the output to the clipboard; `False` by default.
 
-Refer to the existing commands in the script for examples. And use `q` to help!
+Refer to the existing commands in the script for examples.
