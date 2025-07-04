@@ -63,6 +63,7 @@ COMMANDS = [
     {
         'flags': [],
         'description': 'follow-up on the previous response',
+        'clip_output': _load_resource('clip_output', False),
         'model_args': _load_resource('model_args', {}),
         'messages': _load_resource('messages', []) + [
             {
@@ -91,7 +92,8 @@ COMMANDS = [
     },
     {
         'flags': ['-c', '--code'],
-        'description': f'generate a code snippet (default {DEFAULT_CODE} unless specified)',
+        'description': f'generate a code snippet (default {DEFAULT_CODE})',
+        'clip_output': True,
         'model_args': {
             'model': FULL_LLM,
         },
@@ -108,7 +110,8 @@ COMMANDS = [
     },
     {
         'flags': ['-s', '--shell'],
-        'description': f'generate a shell command (default {DEFAULT_SHELL} system unless specified)',
+        'description': f'generate a shell command (default {DEFAULT_SHELL})',
+        'clip_output': True,
         'messages': [
             { 
                 'role': 'developer', 
@@ -123,6 +126,7 @@ COMMANDS = [
     {
         'flags': ['-x', '--regex'],
         'description': 'generate a regex pattern',
+        'clip_output': True,
         'messages': [
             { 
                 'role': 'developer', 
@@ -136,7 +140,7 @@ COMMANDS = [
     },
     {
         'flags': ['-i', '--image'],
-        'description': 'generate an image (note: very expensive)',
+        'description': 'generate an image (very expensive)',
         'model_args': {
             'model': MINI_LLM,
             'tools': [{
@@ -149,6 +153,27 @@ COMMANDS = [
             {
                 'role': 'user',
                 'content': 'Generate an image of the following: {text}.'
+            }
+        ]
+    },
+    {
+        'flags': ['-w', '--web'],
+        'description': 'search the internet (more expensive)',
+        'model_args' : {
+            'model': MINI_LLM,
+            'tools': [{
+                'type': 'web_search_preview',
+                'search_context_size': 'low'
+            }],
+        },
+        'messages': [
+            { 
+                'role': 'developer', 
+                'content': 'You fetch real-time data from the internet. Always respond with only the data requested. Do not provide additional information in the form of context, background, or links. The response should be less than a single sentence.'
+            },
+            {
+                'role': 'user',
+                'content': 'Fetch the following information: {text}.'
             }
         ]
     },
@@ -166,27 +191,6 @@ COMMANDS = [
             {
                 'role': 'user',
                 'content': 'Rephrase the following text: {text}'
-            }
-        ]
-    },
-    {
-        'flags': ['-w', '--web'],
-        'description': 'search the internet (note: more expensive)',
-        'model_args' : {
-            'model': MINI_LLM,
-            'tools': [{
-                'type': 'web_search_preview',
-                'search_context_size': 'low'
-            }],
-        },
-        'messages': [
-            { 
-                'role': 'developer', 
-                'content': 'You fetch real-time data from the internet. Always respond with only the data requested. Do not provide additional information in the form of context, background, or links. The response should be less than a single sentence.'
-            },
-            {
-                'role': 'user',
-                'content': 'Fetch the following information: {text}.'
             }
         ]
     }
@@ -265,6 +269,8 @@ def run_command(cmd: Dict, text: str, **opt_args):
 
     # save model args for follow-up commands
     _save_resource('model_args', model_args)
+    # save command args for follow-up commands
+    _save_resource('clip_output', cmd.get('clip_output', False))
 
     # overwrite previous follow-up command
     if opt_args.get('overwrite', False):
@@ -274,7 +280,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
             messages = messages[:user_msg_indices[-2]] + messages[user_msg_indices[-1]:]
         else:
             cprint(f'Error: No previous command to overwrite.', 'red')
-            exit(1)
+            sys.exit(1)
 
     # set max tokens for long responses
     if opt_args.get('longer', False):
@@ -307,7 +313,7 @@ def run_command(cmd: Dict, text: str, **opt_args):
         print(text_response)
 
     # copy text response to clipboard
-    if not image_response and not opt_args.get('no-clip', False):
+    if not image_response and not opt_args.get('no-clip', False) and cmd.get('clip_output', False):
         try:
             pyperclip.copy(text_response)
             cprint(f'Output copied to clipboard.', 'yellow')
@@ -325,19 +331,19 @@ def validate_commands():
     # check if there is a default command
     if len([cmd for cmd in COMMANDS if not cmd['flags']]) == 0:
         cprint(f'Error: No default command found.', 'red')
-        exit(1)
+        sys.exit(1)
 
     # check if there is more than one default command
     if len([cmd for cmd in COMMANDS if not cmd['flags']]) > 1:
         cprint(f'Error: More than one default command found. If a custom command was added, it is missing a flag.', 'red')
-        exit(1)
+        sys.exit(1)
 
     # check if there are duplicate commands
     cmd_flags = [flag for cmd in COMMANDS for flag in cmd['flags']]
     dup_flags = set(flag for flag in cmd_flags if cmd_flags.count(flag) > 1)
     if dup_flags:
         cprint(f'Error: Duplicate commands found: {", ".join(dup_flags)}.', 'red')
-        exit(1)
+        sys.exit(1)
 
 def main(args):
     # fix ANSI escape codes on Windows
@@ -358,28 +364,28 @@ def main(args):
     # print help text if no arguments or -h/--help flag is provided
     if len(args) == 1 or args[1] in ['-h', '--help']:
         print(help_text)
-        exit(0)
+        sys.exit(0)
 
     # check if there is more than one command
     cmd_flags = [flag for cmd in COMMANDS for flag in cmd['flags']]
     if len([arg for arg in args[1:] if arg in cmd_flags]) > 1:
         cprint(f'Error: Only one command may be provided.', 'red')
-        exit(1)
+        sys.exit(1)
 
     # check if there is a command that is not the first argument
     if len([arg for arg in args[1:] if arg in cmd_flags]) == 1 and args[1] not in cmd_flags:
         cprint(f'Error: Command must be the first argument.', 'red')
-        exit(1)
+        sys.exit(1)
 
     # check if the first argument is an invalid command
     if args[1].startswith('-') and args[1] not in cmd_flags:
         cprint(f'Error: Invalid command "{args[1]}".', 'red')
-        exit(1)
+        sys.exit(1)
 
     # check if there is no text provided for a command
     if args[1] in cmd_flags and len(args) < 3:
         cprint(f'Error: No text provided.', 'red')
-        exit(1)
+        sys.exit(1)
 
     # extract options and remove them from the text
     opt_args = {opt['name']: False for opt in OPTIONS}
@@ -401,13 +407,13 @@ def main(args):
                         break
                 else:
                     cprint(f'Error: Invalid option "-{flags}".', 'red')
-                    exit(1)
+                    sys.exit(1)
 
     # run command
     for cmd in COMMANDS:
         if args[1] in cmd['flags']:
             run_command(cmd, ' '.join(args[2:]), **opt_args)
-            exit(0)
+            sys.exit(0)
     # run default command
     else:
         # already validated there is exactly one default command
