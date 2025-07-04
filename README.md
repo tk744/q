@@ -99,6 +99,24 @@ $ q -x html tags
 <[^>]+>
 ```
 
+### Generate Images
+
+Use the `-i` or `--image` command to generate 1024x1024 images (note: this is very expensive!):
+
+```
+$ q -i george washington riding a harley through the american civil war
+Image saved to q_george_washington_riding_a_harley_through_the_american_civil_war.png.
+```
+
+### Search the Web
+
+Use the `-w` or `--web` command to search the web for up-to-date information (note: this is slightly more expensive):
+
+```
+$ q -w steph curry age
+Stephen Curry is 37 years old.
+```
+
 ### Rephrase Text
 
 Use the `-r` or `--rephrase` command to rephrase text for enhanced fluency:
@@ -122,13 +140,13 @@ $ q -p give me a punchline without the setup
 Use `q` without specifying a command to build on previous responses and run contextualized multi-turn commands:
 
 ```
-$ q -r did they went away of town
-Did they leave town?
-$ q now like a sarcastic pirate
-Arr, did they set sail and abandon this here town?
+$ q -w nba champions
+The Oklahoma City Thunder won the 2025 NBA Finals, defeating the Indiana Pacers 4-3. (nba.com)
+$ q champion odds
+As of July 4, 2025, the Oklahoma City Thunder are favored to win the 2025-26 NBA Championship, with odds of +210. Other top contenders include the Cleveland Cavaliers at +750, New York Knicks at +1600, and Houston Rockets at +850. (findbet.com, espn.com)
 ```
 
-This enables many useful follow-up interactions, like interactively refining generated code:
+This enables many useful follow-up interactions, such as interactively refining generated code:
 
 ```
 $ q -s get cuda version
@@ -145,7 +163,16 @@ $ nvidia-smi | grep "CUDA Version"
 | NVIDIA-SMI 560.35.02    Driver Version: 560.94    CUDA Version: 12.6 |
 ```
 
-Asking questions about generated code:
+You can even refine generated images:
+
+```
+$ q -i low poly rubber duck
+Image saved to q_low_poly_rubber_duck.png.
+$ q make it float in a high res bathtub
+Image saved to q_make_it_float_in_a_high_res_bathtub.png.
+```
+
+Or ask questions about previous responses:
 
 ```
 $ q -c function to merge two dictionaries x and y
