@@ -3,21 +3,31 @@
 
 # Installation
 
-Requires Python 3.8+ and the following dependencies:
+## Prebuilt Executable
+
+Download the appropriate binary for your system from the [Releases page](https://github.com/tk744/q/releases/latest) to a directory in your path (e.g. `~/.local/bin/`) and make it executable:
 
 ```
-pip install colorama openai pyperclip termcolor
+wget -qO ~/.local/bin/q https://github.com/tk744/q/releases/download/v1.2/q-v1.2-Linux && chmod +x ~/.local/bin/q
 ```
 
-Download the script to a directory in your path (e.g. `~/.local/bin/`) and make it executable:
+Note that these binaries are built on the latest version of each system using GitHub Actions, and therefore may not work on older system versions. If you encounter issues, consider using the script directly instead.
+
+## Python Script
+
+Clone the repository and install the `requirements.txt` file, then run the script directly or copy it to a directory in your path (e.g. `~/.local/bin/`) to run it globally:
 
 ```
-wget -qO ~/.local/bin/q https://raw.githubusercontent.com/tk744/q/refs/heads/main/q && chmod +x ~/.local/bin/q
+git clone https://github.com/tk744/q.git
+cd q && pip install -r requirements.txt
+cp q ~/.local/bin/q
 ```
 
-The first time `q` is prompted, you will be asked for an OpenAI API key which you can create [here](https://platform.openai.com/api-keys).
+Requires Python 3.8+.
 
 # Usage
+
+The first time `q` is prompted, you will be asked for an OpenAI API key which you can create [here](https://platform.openai.com/api-keys).
 
 The basic syntax is `q [command] TEXT [options]`. `q` accepts at most one command and any number of options. Any arguments between the command and options is treated as the input text.
 
